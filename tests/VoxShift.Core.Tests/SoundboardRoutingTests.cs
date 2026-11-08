@@ -22,9 +22,9 @@ public class SoundboardRoutingTests
     private static AudioClip Sound(int frames) => new(TestSignals.Constant(frames, 0.0625f, 0.0625f), Rate);
 
     [Fact]
-    public void MicrophonePlusSoundboard()
+    public void MicrophonePlusSoundboard_WhenAutoMuteIsOff()
     {
-        var router = new AudioRouter(Rate, AudioSource.Microphone);
+        var router = new AudioRouter(Rate, AudioSource.Microphone) { AutoMuteMicrophone = false };
         router.Soundboard.Volume = 1f;
         for (int i = 0; i < 10; i++) Step(router);
         router.Soundboard.Play("x", Sound(Rate));
@@ -51,7 +51,7 @@ public class SoundboardRoutingTests
     [Fact]
     public void SoundboardKeepsPlayingThroughModeSwitch()
     {
-        var router = new AudioRouter(Rate, AudioSource.Microphone);
+        var router = new AudioRouter(Rate, AudioSource.Microphone) { AutoMuteMicrophone = false };
         router.Soundboard.Volume = 1f;
         for (int i = 0; i < 10; i++) Step(router);
         router.Soundboard.Play("x", Sound(Rate));

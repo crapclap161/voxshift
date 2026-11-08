@@ -80,20 +80,24 @@ internal static class ScreenshotRenderer
         var boards = new[] { new SoundboardItem("demo-1", "Stream"), new SoundboardItem("demo-2", "Memes") };
         var idle = new (string Name, double Progress, bool Missing)[]
         {
-            ("Airhorn", -1, false), ("Applause", -1, false), ("Bruh", -1, false),
-            ("Laugh", -1, false), ("Notification", -1, false), ("Victory", -1, false),
+            ("Airhorn", -1, false), ("Applause", -1, false), ("Bruh", -1, false), ("Laugh", -1, false),
+            ("Victory", -1, false), ("Notification", -1, false), ("Drumroll", -1, false), ("Sad Trombone", -1, false),
         };
         var playing = new (string Name, double Progress, bool Missing)[]
         {
-            ("Airhorn", 0.62, false), ("Applause", -1, false), ("Bruh", -1, false),
-            ("Laugh", 0.28, false), ("Notification", -1, false), ("Victory", -1, false),
+            ("Airhorn", 0.62, false), ("Applause", -1, false), ("Bruh", -1, false), ("Laugh", 0.28, false),
+            ("Victory", -1, false), ("Notification", -1, false), ("Drumroll", -1, false), ("Sad Trombone", -1, false),
         };
 
         vm.MicrophoneVolume = 100;
         vm.ApplicationVolume = 60;
+        vm.Soundboard.Volume = 80;
+        vm.Soundboard.MonitorVolume = 70;
+        vm.AutoMuteMicrophone = true;
+        vm.TalkOverMusic = false;
         vm.Mode = AudioSource.Microphone;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.78, 0.66, 0.77);
-        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: false, dropHint: string.Empty);
         await Settle(400);
 
         // 1) Application picker (needs the real window for its popup)
@@ -111,75 +115,95 @@ internal static class ScreenshotRenderer
             await Settle();
         }
 
-        // 2) Main window in both modes. Rendered detached from the window so the full height fits
-        //    (a real window is limited to the build machine's small screen).
-        var root = (FrameworkElement)window.Content;
-        window.Content = null;
-        foreach (var sv in FindAll<ScrollViewer>(root)) sv.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
-        var host = new Border
-        {
-            Child = root,
-            Width = 470,
-            Background = window.Background,
-            DataContext = vm,
-        };
-        host.Resources.MergedDictionaries.Add(window.Resources);
-        System.Windows.Documents.TextElement.SetForeground(host, window.Foreground);
-        System.Windows.Documents.TextElement.SetFontFamily(host, window.FontFamily);
+        // The three real windows of v0.0.5. Each is shown once (so templates and styles apply) and then rendered
+        // detached from its window, because a build machine's screen is smaller than the full layout.
+        var mixingCard = window.FindName("MixingCard") as FrameworkElement;
+        var statusCard = window.FindName("StatusCard") as FrameworkElement;
+        var main = Detach(window, vm, MainWidth);
 
-        // Microphone mode
-        vm.MicrophoneVolume = 100;
-        vm.ApplicationVolume = 60;
-        vm.Mode = AudioSource.Microphone;
-        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.78, 0.66, 0.77);
-        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
-        Layout(host);
-        await Settle(600);
-        Layout(host);
-        Save(host, Path.Combine(directory, "main-microphone.png"));
+        // The real dock window of the main window (its controller is detached: nothing is docked on the build machine).
+        window.DockController.Dispose();
+        var dockWindow = window.Dock;
+        if (!dockWindow.IsVisible) dockWindow.Show();
+        await Settle(400);
+        var dock = Detach(dockWindow, vm, DockWidth);
 
-        // Application mode
-        vm.Mode = AudioSource.Application;
-        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.31, 0.83, 0.82);
-        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
-        Layout(host);
-        await Settle(600);
-        Layout(host);
-        Save(host, Path.Combine(directory, "main-application.png"));
+        var vrWindow = new VrControllerWindow(vm) { WindowStartupLocation = WindowStartupLocation.Manual, Left = 60, Top = 40 };
+        vrWindow.Show();
+        await Settle(400);
+        vm.Soundboard.GridColumns = 3;
+        var vr = Detach(vrWindow, vm, VrWidth);
 
-        // Soundboard screenshots (framed afterwards by docs/tools/compose_hero.py from the raw/ folder).
         string raw = Path.Combine(directory, "raw");
         Directory.CreateDirectory(raw);
+
+        // 2) Full main window, classic modes (full height, no scrolling).
+        vm.TalkOverMusic = false;
         vm.Mode = AudioSource.Microphone;
-        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.86);
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.78, 0.66, 0.77);
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: false, dropHint: string.Empty);
+        vm.RefreshEffectiveState();
+        await RenderFullHeight(main, Path.Combine(directory, "main-microphone.png"));
 
-        // Collapsed soundbar: only the header remains.
-        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
-        Layout(host);
-        await Settle(700);
-        Layout(host);
-        Save(host, Path.Combine(raw, "soundboard-collapsed.png"));
+        vm.Mode = AudioSource.Application;
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.31, 0.83, 0.82);
+        await RenderFullHeight(main, Path.Combine(directory, "main-application.png"));
 
-        // Expanded soundboard with two sounds playing (microphone + soundboard mixed).
+        // 3) v0.0.5 main UI: application mode with Talk over music, voice and Spotify together.
+        vm.TalkOverMusic = true;
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.72, 0.80, 0.84);
+        await RenderFullHeight(main, Path.Combine(raw, "v005-main-ui.png"));
+
+        // 4) Audio mixing controls while a sound plays: Spotify continues, the microphone is auto-muted.
         vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
-        Layout(host);
-        await Settle(800);
-        Layout(host);
-        Save(host, Path.Combine(raw, "soundboard-expanded.png"));
-
-        // Drag & drop target state, exactly as shown while files are dragged over the soundbar.
-        if (window.FindName("SoundboardCard") is FrameworkElement card)
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.70, 0.78, 0.88);
+        if (mixingCard is not null && statusCard is not null)
         {
-            vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: true, dropHint: "Drop to add sounds (3 items)");
-            Layout(host);
+            SetScrolling(main, enabled: false);
+            Layout(main, double.PositiveInfinity);
             await Settle(600);
-            Layout(host);
-            SaveRegion(host, card, Path.Combine(raw, "soundboard-drag-drop.png"), padding: 14);
+            Layout(main, double.PositiveInfinity);
+            SaveRegion(main, [statusCard, mixingCard], Path.Combine(raw, "v005-audio-mixing.png"), padding: 12);
         }
 
-        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
+        // 5) Main window + docked soundboard, expanded, two sounds playing (microphone mode, mic auto-muted).
+        vm.TalkOverMusic = false;
+        vm.Mode = AudioSource.Microphone;
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.86);
+        vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
+        await RenderDocked(main, dock, DockWidth, Path.Combine(raw, "v005-soundboard-docked-expanded.png"));
 
-        // 3) Setup help
+        // 6) Collapsed dock: the slim strip with its expand handle.
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.71);
+        await RenderDocked(main, dock, SoundboardDockController.CollapsedWidth, Path.Combine(raw, "v005-soundboard-docked-collapsed.png"));
+
+        // 7) Drag & drop target state of the dock, exactly as shown while files are dragged over it.
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: true, dropHint: "Drop to add sounds (3 items)");
+        dock.Width = DockWidth;
+        dock.Height = 760;
+        Layout(dock, 760);
+        await Settle(600);
+        Layout(dock, 760);
+        Save(dock, Path.Combine(raw, "soundboard-drag-drop.png"));
+
+        // 8) VR Controller Mode: application + talk over music, a sound playing, microphone auto-muted.
+        vm.TalkOverMusic = true;
+        vm.Mode = AudioSource.Application;
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.70, 0.78, 0.88);
+        vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
+        vr.Height = VrHeight;
+        Layout(vr, VrHeight);
+        await Settle(700);
+        Layout(vr, VrHeight);
+        Save(vr, Path.Combine(raw, "v005-vr-controller-mode.png"));
+
+        vrWindow.AllowClose = true;
+        vrWindow.Close();
+        dockWindow.Hide();
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: false, dropHint: string.Empty);
+
+        // 9) Setup help
         var help = new SetupHelpWindow { Owner = window, WindowStartupLocation = WindowStartupLocation.Manual, Left = 600, Top = 20 };
         help.Show();
         await Settle(600);
@@ -197,12 +221,98 @@ internal static class ScreenshotRenderer
         help.Close();
     }
 
-    private static void Layout(FrameworkElement element)
+    private const double MainWidth = 540;
+    private const double DockWidth = 420;
+    private const double DockedHeight = 1000;
+    private const double VrWidth = 820;
+    private const double VrHeight = 960;
+
+    /// <summary>Moves a shown window's content into a detached host with the window's resources and text settings.</summary>
+    private static Border Detach(Window source, MainViewModel vm, double width)
     {
-        element.Measure(new Size(element.Width, double.PositiveInfinity));
-        element.Arrange(new Rect(element.DesiredSize));
+        var root = (FrameworkElement)source.Content;
+        source.Content = null;
+        var host = new Border
+        {
+            Child = root,
+            Width = width,
+            Background = source.Background,
+            DataContext = vm,
+        };
+        host.Resources.MergedDictionaries.Add(source.Resources);
+        System.Windows.Documents.TextElement.SetForeground(host, source.Foreground);
+        System.Windows.Documents.TextElement.SetFontFamily(host, source.FontFamily);
+        TextOptions.SetTextFormattingMode(host, TextOptions.GetTextFormattingMode(source));
+        return host;
+    }
+
+    private static void SetScrolling(FrameworkElement root, bool enabled)
+    {
+        foreach (var sv in FindAll<ScrollViewer>(root))
+        {
+            sv.VerticalScrollBarVisibility = enabled ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
+            sv.ScrollToTop();
+        }
+    }
+
+    private static async Task RenderFullHeight(Border main, string path)
+    {
+        main.Height = double.NaN;
+        SetScrolling(main, enabled: false);
+        Layout(main, double.PositiveInfinity);
+        await Settle(600);
+        Layout(main, double.PositiveInfinity);
+        Save(main, path);
+    }
+
+    /// <summary>
+    /// Renders the main window and the dock side by side, exactly as the dock controller arranges them: the dock flush
+    /// against the main window's right edge with the same height.
+    /// </summary>
+    private static async Task RenderDocked(Border main, Border dock, double dockWidth, string path)
+    {
+        main.Height = DockedHeight;
+        SetScrolling(main, enabled: true);
+        dock.Width = dockWidth;
+        dock.Height = DockedHeight;
+        Layout(main, DockedHeight);
+        Layout(dock, DockedHeight);
+        await Settle(700);
+        Layout(main, DockedHeight);
+        Layout(dock, DockedHeight);
+        SaveSideBySide(main, dock, path);
+    }
+
+    private static void Layout(FrameworkElement element, double height)
+    {
+        element.Measure(new Size(element.Width, height));
+        var size = double.IsInfinity(height) ? element.DesiredSize : new Size(element.Width, height);
+        element.Arrange(new Rect(size));
         element.UpdateLayout();
     }
+
+    private static void SaveSideBySide(FrameworkElement left, FrameworkElement right, string path)
+    {
+        double w = left.ActualWidth + right.ActualWidth;
+        double h = Math.Max(left.ActualHeight, right.ActualHeight);
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(new VisualBrush(left) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null,
+                new Rect(0, 0, left.ActualWidth, left.ActualHeight));
+            dc.DrawRectangle(new VisualBrush(right) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null,
+                new Rect(left.ActualWidth, 0, right.ActualWidth, right.ActualHeight));
+        }
+
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(w * Scale), (int)Math.Ceiling(h * Scale), 96 * Scale, 96 * Scale, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+    }
+
+    private static void Layout(FrameworkElement element) => Layout(element, double.PositiveInfinity);
 
     private static void Save(FrameworkElement element, string path, bool useDescendantBounds = false)
     {
@@ -237,18 +347,23 @@ internal static class ScreenshotRenderer
 
     /// <summary>
     /// Renders <paramref name="root"/> completely (the same path as the full-window screenshots) and crops it to the
-    /// bounds of <paramref name="element"/> plus <paramref name="padding"/>, including overlays that extend outside it.
+    /// bounds of <paramref name="elements"/> plus <paramref name="padding"/>, including overlays that extend outside them.
     /// </summary>
-    private static void SaveRegion(FrameworkElement root, FrameworkElement element, string path, double padding)
+    private static void SaveRegion(FrameworkElement root, FrameworkElement[] elements, string path, double padding)
     {
         int fullW = (int)Math.Ceiling(root.ActualWidth * Scale);
         int fullH = (int)Math.Ceiling(root.ActualHeight * Scale);
         var full = new RenderTargetBitmap(fullW, fullH, 96 * Scale, 96 * Scale, PixelFormats.Pbgra32);
         full.Render(root);
 
-        Rect local = VisualTreeHelper.GetDescendantBounds(element);
-        local.Union(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
-        Rect bounds = element.TransformToAncestor(root).TransformBounds(local);
+        Rect bounds = Rect.Empty;
+        foreach (var element in elements)
+        {
+            Rect local = VisualTreeHelper.GetDescendantBounds(element);
+            local.Union(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+            bounds.Union(element.TransformToAncestor(root).TransformBounds(local));
+        }
+
         bounds.Inflate(padding, padding);
         bounds.Intersect(new Rect(0, 0, root.ActualWidth, root.ActualHeight));
         if (bounds.IsEmpty) return;

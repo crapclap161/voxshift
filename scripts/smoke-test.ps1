@@ -4,7 +4,9 @@
 
 .DESCRIPTION
   The app starts its UI and audio engine, enumerates devices and applications, toggles the mode,
-  probes process-loopback capture of its own process, writes a report and exits. Build machines have
+  probes process-loopback capture of its own process, plays a soundboard file, checks talk over music and
+  soundboard auto-mute, shows the docked soundboard, switches to VR Controller Mode and back (verifying that the
+  audio engine is never restarted), writes a report and exits. Build machines have
   no microphone or virtual cable, so only device-independent results are asserted.
 #>
 [CmdletBinding()]
@@ -42,4 +44,6 @@ if ($text -notmatch "(?m)^Version: $([regex]::Escape($ExpectedVersion))\s*$") { 
 if ($text -notmatch '(?m)^Window title: VoxShift') { throw 'Window title is not branded VoxShift.' }
 if ($text -notmatch 'Process loopback probe \(own process\): OK') { throw 'Process loopback capture probe failed.' }
 if ($text -notmatch 'Soundboard probe: OK') { throw 'Soundboard probe failed (import, decode, resample or mixer).' }
+if ($text -notmatch 'Smart mixing probe: OK') { throw 'Smart mixing probe failed (talk over music / soundboard auto-mute).' }
+if ($text -notmatch 'Interface probe: OK') { throw 'Interface probe failed (soundboard dock or VR Controller Mode).' }
 Write-Host 'Smoke test passed.'

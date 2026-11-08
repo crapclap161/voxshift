@@ -7,7 +7,13 @@ namespace VoxShift.Core.Config;
 /// <summary>Everything that is remembered between application runs.</summary>
 public sealed class AppSettings
 {
-    public const int CurrentSchemaVersion = 3; // 2: soundboard (v0.0.3), 3: soundboard monitoring (v0.0.4); older files load with defaults
+    // 2: soundboard (v0.0.3), 3: soundboard monitoring (v0.0.4), 4: smart mixing, dock and VR Controller Mode (v0.0.5).
+    // Older files load unchanged; new settings get their defaults (see Normalize).
+    public const int CurrentSchemaVersion = 4;
+
+    public const double DefaultSoundboardDockWidth = 420;
+    public const double MinSoundboardDockWidth = 300;
+    public const double MaxSoundboardDockWidth = 900;
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -52,7 +58,37 @@ public sealed class AppSettings
 
     public int SoundboardVolumePercent { get; set; } = 80;
 
+    /// <summary>Legacy (v0.0.3/v0.0.4) expanded state of the embedded soundbar. Kept in sync with <see cref="SoundboardDockExpanded"/>.</summary>
     public bool SoundboardExpanded { get; set; } = true;
+
+    /// <summary>The soundboard dock next to the main window is expanded (false = narrow strip).</summary>
+    public bool SoundboardDockExpanded { get; set; } = true;
+
+    /// <summary>The soundboard dock is shown next to the main window at all.</summary>
+    public bool SoundboardDockVisible { get; set; } = true;
+
+    /// <summary>Width of the expanded soundboard dock in device-independent pixels.</summary>
+    public double SoundboardDockWidth { get; set; } = DefaultSoundboardDockWidth;
+
+    /// <summary>Mute the microphone contribution while soundboard sounds play (VoxShift's mix only).</summary>
+    public bool AutoMuteMicrophoneDuringSoundboard { get; set; } = true;
+
+    /// <summary>In application mode, also transmit the microphone ("Talk over music").</summary>
+    public bool TalkOverMusicEnabled { get; set; }
+
+    /// <summary>Show the simplified VR Controller window instead of the full interface.</summary>
+    public bool VrControllerModeEnabled { get; set; }
+
+    public double? VrWindowLeft { get; set; }
+
+    public double? VrWindowTop { get; set; }
+
+    public double? VrWindowWidth { get; set; }
+
+    public double? VrWindowHeight { get; set; }
+
+    /// <summary>Height of the main window (device-independent pixels); null = default.</summary>
+    public double? WindowHeight { get; set; }
 
     /// <summary>Also play soundboard sounds on your own default playback device (headphones).</summary>
     public bool SoundboardMonitorEnabled { get; set; } = true;
@@ -83,11 +119,38 @@ public sealed class AppSettings
         NormalizeSoundboards();
         if (WindowLeft is { } l && (double.IsNaN(l) || double.IsInfinity(l))) WindowLeft = null;
         if (WindowTop is { } t && (double.IsNaN(t) || double.IsInfinity(t))) WindowTop = null;
+        WindowHeight = ValidSize(WindowHeight, 420, 4000);
+        VrWindowLeft = Finite(VrWindowLeft);
+        VrWindowTop = Finite(VrWindowTop);
+        VrWindowWidth = ValidSize(VrWindowWidth, 360, 4000);
+        VrWindowHeight = ValidSize(VrWindowHeight, 360, 4000);
+        SoundboardDockWidth = double.IsFinite(SoundboardDockWidth)
+            ? Math.Clamp(SoundboardDockWidth, MinSoundboardDockWidth, MaxSoundboardDockWidth)
+            : DefaultSoundboardDockWidth;
+
+        if (SchemaVersion < 4)
+        {
+            // Upgrade from v0.0.4 or older: the soundboard moves into the dock. People who already use the
+            // soundboard get it visible and expanded; the new audio options start with their safe defaults.
+            SoundboardDockExpanded = SoundboardExpanded || Soundboards.Count > 0;
+            SoundboardDockVisible = true;
+            SoundboardDockWidth = DefaultSoundboardDockWidth;
+            AutoMuteMicrophoneDuringSoundboard = true;
+            TalkOverMusicEnabled = false;
+            VrControllerModeEnabled = false;
+        }
+
+        SoundboardExpanded = SoundboardDockExpanded; // keeps a downgrade to v0.0.4 consistent
         SchemaVersion = CurrentSchemaVersion;
         return this;
     }
 
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
+
+    private static double? Finite(double? value) => value is { } v && double.IsFinite(v) ? v : null;
+
+    private static double? ValidSize(double? value, double min, double max) =>
+        value is { } v && double.IsFinite(v) ? Math.Clamp(v, min, max) : null;
 
     private void NormalizeSoundboards()
     {

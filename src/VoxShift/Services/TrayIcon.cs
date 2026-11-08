@@ -10,16 +10,28 @@ public sealed class TrayIcon : IDisposable
     private readonly WinForms.NotifyIcon _icon;
     private readonly WinForms.ToolStripMenuItem _micItem;
     private readonly WinForms.ToolStripMenuItem _appItem;
+    private readonly WinForms.ToolStripMenuItem _talkItem;
+    private readonly WinForms.ToolStripMenuItem _autoMuteItem;
+    private readonly WinForms.ToolStripMenuItem _vrItem;
 
     public TrayIcon()
     {
         _micItem = new WinForms.ToolStripMenuItem("Microphone", null, (_, _) => MicrophoneRequested?.Invoke());
         _appItem = new WinForms.ToolStripMenuItem("Application audio", null, (_, _) => ApplicationRequested?.Invoke());
+        _talkItem = new WinForms.ToolStripMenuItem("Talk over music", null, (_, _) => TalkOverMusicToggled?.Invoke());
+        _autoMuteItem = new WinForms.ToolStripMenuItem("Auto-mute mic on sounds", null, (_, _) => AutoMuteToggled?.Invoke());
+        _vrItem = new WinForms.ToolStripMenuItem("VR Controller Mode", null, (_, _) => VrModeToggled?.Invoke());
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add(new WinForms.ToolStripMenuItem("Show window", null, (_, _) => ShowRequested?.Invoke()) { Font = new Font(WinForms.Control.DefaultFont, FontStyle.Bold) });
+        // Always-available way out of VR Controller Mode (nobody can get stuck in a hidden window).
+        menu.Items.Add(new WinForms.ToolStripMenuItem("Show full interface", null, (_, _) => FullInterfaceRequested?.Invoke()));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(_micItem);
         menu.Items.Add(_appItem);
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+        menu.Items.Add(_talkItem);
+        menu.Items.Add(_autoMuteItem);
+        menu.Items.Add(_vrItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(new WinForms.ToolStripMenuItem("Exit", null, (_, _) => ExitRequested?.Invoke()));
 
@@ -44,10 +56,21 @@ public sealed class TrayIcon : IDisposable
 
     public event Action? ExitRequested;
 
-    public void Update(bool microphoneMode, string tooltip)
+    public event Action? FullInterfaceRequested;
+
+    public event Action? TalkOverMusicToggled;
+
+    public event Action? AutoMuteToggled;
+
+    public event Action? VrModeToggled;
+
+    public void Update(bool microphoneMode, bool talkOverMusic, bool autoMute, bool vrMode, string tooltip)
     {
         _micItem.Checked = microphoneMode;
         _appItem.Checked = !microphoneMode;
+        _talkItem.Checked = talkOverMusic;
+        _autoMuteItem.Checked = autoMute;
+        _vrItem.Checked = vrMode;
         // NotifyIcon.Text is limited to 127 characters.
         _icon.Text = tooltip.Length > 127 ? tooltip[..127] : tooltip;
     }

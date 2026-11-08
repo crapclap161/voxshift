@@ -53,6 +53,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string? _hotkeyError;
     private string? _notice;
     private bool _startMinimized;
+    private bool _talkOverMusic;
+    private bool _autoMuteMicrophone;
+    private bool _vrControllerMode;
+    private bool _soundboardDockVisible;
+    private bool _previewMode;
+    private bool _isMicrophoneLive;
+    private bool _isMicrophoneMutedBySoundboard;
+    private bool _isApplicationLive;
+    private bool _isSoundboardPlaying;
+    private string _microphoneStateText = "OFF";
+    private string _transmitDetail = string.Empty;
 
     public MainViewModel(AudioEngine engine, SettingsStore store, AppSettings settings, ILog log, Dispatcher dispatcher, IDialogService dialogs)
     {
@@ -71,6 +82,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _hotkeyEnabled = settings.HotkeyEnabled;
         _hotkeyText = settings.ToggleHotkey;
         _startMinimized = settings.StartMinimized;
+        _talkOverMusic = settings.TalkOverMusicEnabled;
+        _autoMuteMicrophone = settings.AutoMuteMicrophoneDuringSoundboard;
+        _vrControllerMode = settings.VrControllerModeEnabled;
+        _soundboardDockVisible = settings.SoundboardDockVisible;
+        _engine.SetTalkOverMusic(_talkOverMusic);
+        _engine.SetAutoMuteMicrophone(_autoMuteMicrophone);
 
         SelectMicrophoneModeCommand = new RelayCommand(() => Mode = AudioSource.Microphone);
         SelectApplicationModeCommand = new RelayCommand(() => Mode = AudioSource.Application);
@@ -87,6 +104,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         });
         DismissNoticeCommand = new RelayCommand(() => Notice = null);
         OpenSetupGuideCommand = new RelayCommand(() => SetupGuideRequested?.Invoke());
+        ToggleTalkOverMusicCommand = new RelayCommand(() => TalkOverMusic = !TalkOverMusic);
+        ToggleAutoMuteMicrophoneCommand = new RelayCommand(() => AutoMuteMicrophone = !AutoMuteMicrophone);
+        EnterVrControllerModeCommand = new RelayCommand(() => VrControllerMode = true);
+        ExitVrControllerModeCommand = new RelayCommand(() => VrControllerMode = false);
+        ToggleSoundboardDockCommand = new RelayCommand(() => SoundboardDockVisible = !SoundboardDockVisible);
 
         _meterTimer = new DispatcherTimer(DispatcherPriority.Render, dispatcher) { Interval = TimeSpan.FromMilliseconds(33) };
         _meterTimer.Tick += (_, _) => UpdateMeters();
@@ -98,6 +120,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
 
         Soundboard = new SoundboardViewModel(settings, engine.Soundboard, dialogs, ScheduleSave, log, engine.SetMonitorEnabled, engine.SetMonitorVolume);
+        RefreshEffectiveState();
 
         _engine.StatusChanged += s => _dispatcher.BeginInvoke(() => ApplyStatus(s));
         _engine.DevicesChanged += () => _dispatcher.BeginInvoke(async () => await LoadDevicesAsync());
@@ -137,6 +160,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand DismissNoticeCommand { get; }
 
     public ICommand OpenSetupGuideCommand { get; }
+
+    public ICommand ToggleTalkOverMusicCommand { get; }
+
+    public ICommand ToggleAutoMuteMicrophoneCommand { get; }
+
+    public ICommand EnterVrControllerModeCommand { get; }
+
+    public ICommand ExitVrControllerModeCommand { get; }
+
+    public ICommand ToggleSoundboardDockCommand { get; }
 
     /// <summary>Raised when the view should show the setup guide window.</summary>
     public event Action? SetupGuideRequested;
@@ -275,6 +308,195 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void ToggleMode() => Mode = _mode == AudioSource.Microphone ? AudioSource.Application : AudioSource.Microphone;
 
+    // ---- smart mixing ---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Talk over music: in application mode VRChat hears the application <b>and</b> your microphone.
+    /// Off (default) = the classic switch, where application mode never sends the microphone.
+    /// </summary>
+    public bool TalkOverMusic
+    {
+        get => _talkOverMusic;
+        set
+        {
+            if (!Set(ref _talkOverMusic, value)) return;
+            _engine.SetTalkOverMusic(value);
+            _settings.TalkOverMusicEnabled = value;
+            OnModeOrStatusChanged();
+            ModeChanged?.Invoke();
+            ScheduleSave();
+        }
+    }
+
+    /// <summary>Automatically mute the microphone contribution while soundboard sounds play (default on).</summary>
+    public bool AutoMuteMicrophone
+    {
+        get => _autoMuteMicrophone;
+        set
+        {
+            if (!Set(ref _autoMuteMicrophone, value)) return;
+            _engine.SetAutoMuteMicrophone(value);
+            _settings.AutoMuteMicrophoneDuringSoundboard = value;
+            OnModeOrStatusChanged();
+            ModeChanged?.Invoke();
+            ScheduleSave();
+        }
+    }
+
+    // ---- interface ------------------------------------------------------------------------------
+
+    /// <summary>
+    /// VR Controller Mode: the full window and the dock are replaced by one simplified window with big buttons.
+    /// Only the UI changes; the audio engine and the soundboard keep running untouched.
+    /// </summary>
+    public bool VrControllerMode
+    {
+        get => _vrControllerMode;
+        set
+        {
+            if (!Set(ref _vrControllerMode, value)) return;
+            _settings.VrControllerModeEnabled = value;
+            ModeChanged?.Invoke();
+            ScheduleSave();
+        }
+    }
+
+    /// <summary>Show the soundboard dock next to the main window.</summary>
+    public bool SoundboardDockVisible
+    {
+        get => _soundboardDockVisible;
+        set
+        {
+            if (!Set(ref _soundboardDockVisible, value)) return;
+            _settings.SoundboardDockVisible = value;
+            ScheduleSave();
+        }
+    }
+
+    /// <summary>Width of the expanded soundboard dock (device-independent pixels).</summary>
+    public double SoundboardDockWidth
+    {
+        get => _settings.SoundboardDockWidth;
+        set
+        {
+            double v = Math.Clamp(value, AppSettings.MinSoundboardDockWidth, AppSettings.MaxSoundboardDockWidth);
+            if (Math.Abs(v - _settings.SoundboardDockWidth) < 0.5) return;
+            _settings.SoundboardDockWidth = v;
+            OnPropertyChanged();
+            ScheduleSave();
+        }
+    }
+
+    // ---- effective audio state (what VRChat actually hears right now) ---------------------------
+
+    /// <summary>Your voice is reaching VRChat right now.</summary>
+    public bool IsMicrophoneLive
+    {
+        get => _isMicrophoneLive;
+        private set => Set(ref _isMicrophoneLive, value);
+    }
+
+    /// <summary>The microphone would be sent, but auto-mute holds it back while a sound plays.</summary>
+    public bool IsMicrophoneMutedBySoundboard
+    {
+        get => _isMicrophoneMutedBySoundboard;
+        private set => Set(ref _isMicrophoneMutedBySoundboard, value);
+    }
+
+    /// <summary>Application audio is reaching VRChat right now.</summary>
+    public bool IsApplicationLive
+    {
+        get => _isApplicationLive;
+        private set => Set(ref _isApplicationLive, value);
+    }
+
+    /// <summary>At least one soundboard sound is playing.</summary>
+    public bool IsSoundboardPlaying
+    {
+        get => _isSoundboardPlaying;
+        private set => Set(ref _isSoundboardPlaying, value);
+    }
+
+    /// <summary>The virtual microphone (VB-CABLE) output is running, i.e. VRChat can hear VoxShift.</summary>
+    public bool IsOutputConnected => _status.OutputState == ComponentState.Running;
+
+    /// <summary>Short microphone state for status chips, e.g. "LIVE", "MUTED · SOUND PLAYING", "OFF".</summary>
+    public string MicrophoneStateText
+    {
+        get => _microphoneStateText;
+        private set => Set(ref _microphoneStateText, value);
+    }
+
+    public string OutputStateText => IsOutputConnected ? "CONNECTED" : _status.OutputState == ComponentState.Waiting ? "WAITING" : "NOT CONNECTED";
+
+    public string SoundboardStateText
+    {
+        get
+        {
+            int n = Soundboard.PlayingCount;
+            return n == 0 ? "IDLE" : n == 1 ? "1 PLAYING" : $"{n} PLAYING";
+        }
+    }
+
+    public string ModeStateText => _mode == AudioSource.Microphone
+        ? "MICROPHONE"
+        : (_talkOverMusic ? "APP + MIC" : "APPLICATION");
+
+    /// <summary>
+    /// Recomputes the effective state from the engine (live) or from <see cref="MixPolicy"/> (screenshot preview).
+    /// Called on every meter tick, so the UI follows the real mixer, including auto-mute starting and ending.
+    /// </summary>
+    public void RefreshEffectiveState()
+    {
+        bool output = IsOutputConnected;
+        bool micRunning = _status.MicrophoneState == ComponentState.Running;
+        bool appRunning = _status.ApplicationState == ComponentState.Running;
+        bool soundboard = Soundboard.AnyPlaying;
+        bool micOpen, appOpen, suppressed;
+        if (_previewMode)
+        {
+            var d = MixPolicy.Decide(new MixInputs(_mode, _talkOverMusic, _autoMuteMicrophone, soundboard));
+            micOpen = d.Microphone;
+            appOpen = d.Application;
+            suppressed = d.MicrophoneSuppressed;
+        }
+        else
+        {
+            var router = _engine.Router;
+            soundboard |= router.IsSoundboardActive;
+            if (output)
+            {
+                micOpen = router.IsMicrophoneOpen && !router.IsMicrophoneSuppressed;
+                appOpen = router.IsApplicationOpen;
+                suppressed = router.IsMicrophoneSuppressed;
+            }
+            else
+            {
+                // Nothing is rendered without the virtual cable; show what would happen once it is back.
+                var d = MixPolicy.Decide(new MixInputs(_mode, _talkOverMusic, _autoMuteMicrophone, soundboard));
+                micOpen = false;
+                appOpen = false;
+                suppressed = d.MicrophoneSuppressed;
+            }
+        }
+
+        IsMicrophoneLive = output && micRunning && micOpen;
+        IsApplicationLive = output && appRunning && appOpen;
+        IsMicrophoneMutedBySoundboard = suppressed;
+        IsSoundboardPlaying = soundboard;
+
+        bool micWanted = _mode == AudioSource.Microphone || _talkOverMusic;
+        MicrophoneStateText =
+            suppressed ? "MUTED · SOUND PLAYING"
+            : IsMicrophoneLive ? "LIVE"
+            : !micWanted ? "OFF · APP MODE"
+            : !micRunning ? "UNAVAILABLE"
+            : !output ? "NOT SENT"
+            : "OFF";
+        TransmitDetail = BuildTransmitDetail();
+        OnPropertyChanged(nameof(SoundboardStateText));
+    }
+
     // ---- meters ---------------------------------------------------------------------------------
 
     public double MicrophoneLevel
@@ -303,6 +525,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void SetMetersActive(bool active)
     {
+        if (_previewMode) return;
         if (active) _meterTimer.Start();
         else
         {
@@ -319,6 +542,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OutputLevel = Decay(OutputLevel, VolumeMath.ToMeterPosition(router.TakeOutputPeak()));
         IsLimiting = router.IsLimiting;
         Soundboard.UpdatePlayback();
+        RefreshEffectiveState();
     }
 
     /// <summary>Instant attack, ~1 s fall time from full scale.</summary>
@@ -334,27 +558,48 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool IsTransmitting => _status.IsTransmitting;
 
-    public string TransmitTitle => _status.IsTransmitting
-        ? (_mode == AudioSource.Microphone ? "ON AIR · Microphone" : "ON AIR · " + (_status.ApplicationName ?? "Application"))
-        : "NOT TRANSMITTING";
-
-    public string TransmitDetail
+    public string TransmitTitle
     {
         get
         {
-            if (_status.IsTransmitting)
-            {
-                return _mode == AudioSource.Microphone
-                    ? "VRChat hears your microphone only."
-                    : $"VRChat hears {_status.ApplicationName ?? "the application"} only. Your microphone is not sent.";
-            }
-
-            if (_status.OutputState != ComponentState.Running) return _status.OutputMessage;
-            return _mode == AudioSource.Microphone ? _status.MicrophoneMessage : _status.ApplicationMessage;
+            if (!_status.IsTransmitting) return "NOT TRANSMITTING";
+            if (_mode == AudioSource.Microphone) return "ON AIR · Microphone";
+            string app = _status.ApplicationName ?? "Application";
+            return _talkOverMusic ? $"ON AIR · {app} + Mic" : "ON AIR · " + app;
         }
     }
 
-    public bool IsMicrophoneOnAir => _status.IsTransmitting && _mode == AudioSource.Microphone;
+    /// <summary>One sentence describing exactly what VRChat hears right now (follows auto-mute live).</summary>
+    public string TransmitDetail
+    {
+        get => _transmitDetail;
+        private set => Set(ref _transmitDetail, value);
+    }
+
+    private string BuildTransmitDetail()
+    {
+        if (!_status.IsTransmitting)
+        {
+            if (_status.OutputState != ComponentState.Running) return _status.OutputMessage;
+            return _mode == AudioSource.Microphone ? _status.MicrophoneMessage : _status.ApplicationMessage;
+        }
+
+        string app = _status.ApplicationName ?? "the application";
+        string sounds = _isSoundboardPlaying ? " and your soundboard" : string.Empty;
+        if (_mode == AudioSource.Microphone)
+        {
+            return _isMicrophoneMutedBySoundboard
+                ? "VRChat hears your soundboard. Your microphone is muted until the sound ends."
+                : $"VRChat hears your microphone{sounds}. Application audio is not sent.";
+        }
+
+        if (!_talkOverMusic) return $"VRChat hears {app}{sounds}. Your microphone is not sent.";
+        return _isMicrophoneMutedBySoundboard
+            ? $"VRChat hears {app} and your soundboard. Your microphone is muted until the sound ends."
+            : $"VRChat hears {app} and your microphone{sounds}.";
+    }
+
+    public bool IsMicrophoneOnAir => _status.IsTransmitting && (_mode == AudioSource.Microphone || _talkOverMusic);
 
     public bool IsApplicationOnAir => _status.IsTransmitting && _mode == AudioSource.Application;
 
@@ -373,6 +618,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         EngineStatus status, double micLevel, double appLevel, double outputLevel)
     {
         _meterTimer.Stop();
+        _previewMode = true;
         _suppressSelection = true;
         try
         {
@@ -396,6 +642,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ApplicationLevel = appLevel;
         OutputLevel = outputLevel;
         IsLimiting = false;
+        RefreshEffectiveState();
     }
 
     private void ApplyStatus(EngineStatus status)
@@ -410,9 +657,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnModeOrStatusChanged()
     {
+        RefreshEffectiveState();
         OnPropertyChanged(nameof(IsTransmitting));
         OnPropertyChanged(nameof(TransmitTitle));
-        OnPropertyChanged(nameof(TransmitDetail));
+        OnPropertyChanged(nameof(IsOutputConnected));
+        OnPropertyChanged(nameof(OutputStateText));
+        OnPropertyChanged(nameof(ModeStateText));
         OnPropertyChanged(nameof(IsMicrophoneOnAir));
         OnPropertyChanged(nameof(IsApplicationOnAir));
         OnPropertyChanged(nameof(VrchatHint));
@@ -515,6 +765,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _engine.SetMicrophoneVolume(_micVolume);
         _engine.SetApplicationVolume(_appVolume);
+        _engine.SetTalkOverMusic(_talkOverMusic);
+        _engine.SetAutoMuteMicrophone(_autoMuteMicrophone);
         _engine.Mode = _mode;
         _engine.SelectOutput(_settings.OutputDeviceId);
         _engine.SelectMicrophone(_settings.MicrophoneDeviceId, _settings.MicrophoneDeviceName);

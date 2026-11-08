@@ -12,7 +12,7 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Title>VoxShift</Title>
-    <Description>VoxShift – switch what VRChat hears between your microphone and the audio of one application.</Description>
+    <Description>VoxShift – VR-friendly audio switcher, mixer and soundboard for VRChat.</Description>
     <AssemblyTitle>VoxShift</AssemblyTitle>
     <!-- WPF0001: Fluent theme is marked experimental in .NET 10. WFO0003: DPI awareness is intentionally declared in app.manifest for WPF. -->
     <NoWarn>$(NoWarn);WPF0001;WFO0003</NoWarn>

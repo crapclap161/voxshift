@@ -1,5 +1,8 @@
-"""Builds docs/screenshots/hero.png and framed versions of the screenshots rendered by the
-'Update README screenshots' workflow.  Usage:  python3 docs/tools/compose_hero.py   (needs Pillow)"""
+"""Frames the screenshots rendered by the 'Screenshots' workflow (VoxShift.exe --render-screenshots) and builds
+docs/screenshots/hero.png.  Usage:  python3 docs/tools/compose_hero.py   (needs Pillow)
+
+Only presentation is added here (rounded corners, a drop shadow, a background gradient for the hero and a 1x
+downscale of the 2x renders). The UI itself is never edited: every pixel of the windows comes from the real WPF UI."""
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -33,75 +36,69 @@ def gradient(size, top=(17, 20, 32), bottom=(46, 24, 78)):
     for y in range(h):
         t = y / max(1, h - 1)
         d.line([(0, y), (w, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip(top, bottom)) + (255,))
-    # soft colour glows behind the two windows
     glow = Image.new("RGBA", size, (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    gd.ellipse([w * 0.05, h * 0.15, w * 0.50, h * 0.85], fill=(79, 140, 255, 70))
-    gd.ellipse([w * 0.50, h * 0.15, w * 0.95, h * 0.85], fill=(166, 92, 255, 70))
+    gd.ellipse([w * 0.05, h * 0.15, w * 0.55, h * 0.85], fill=(79, 140, 255, 70))
+    gd.ellipse([w * 0.45, h * 0.15, w * 0.95, h * 0.85], fill=(34, 193, 168, 60))
     g.alpha_composite(glow.filter(ImageFilter.GaussianBlur(120)))
     return g
 
 
-def framed(name, radius=28):
-    img = Image.open(SHOTS / f"{name}.png")
-    return with_shadow(rounded(img, radius))
-
-
 def frame_raw(name, radius=28):
     """docs/screenshots/raw/<name>.png (2x render) -> framed docs/screenshots/<name>.png at 1x."""
-    src = SHOTS / "raw" / f"{name}.png"
-    if not src.exists():
-        return None
-    f = with_shadow(rounded(Image.open(src), radius))
+    f = with_shadow(rounded(Image.open(SHOTS / "raw" / f"{name}.png"), radius))
     f = f.resize((f.width // 2, f.height // 2), Image.LANCZOS)
     f.save(SHOTS / f"{name}.png", optimize=True)
     return f
 
 
-REQUIRED = ["main-microphone", "main-application", "application-picker", "setup-help",
-            "raw/soundboard-expanded", "raw/soundboard-collapsed", "raw/soundboard-drag-drop"]
+FRAMED = ["v005-main-ui", "v005-soundboard-docked-expanded", "v005-soundboard-docked-collapsed",
+          "v005-vr-controller-mode", "v005-audio-mixing", "soundboard-drag-drop"]
+REQUIRED = ["main-microphone", "main-application", "application-picker", "setup-help"] + [f"raw/{n}" for n in FRAMED]
+OUTPUTS = FRAMED + ["hero", "application-picker-framed", "setup-help-framed"]
 
 
-def verify_renders():
-    """Fail loudly instead of publishing missing or blank screenshots."""
-    problems = []
-    for name in REQUIRED:
-        path = SHOTS / f"{name}.png"
-        if not path.exists():
-            problems.append(f"{name}.png is missing")
-            continue
-        img = Image.open(path).convert("RGBA")
-        alpha_min, alpha_max = img.getchannel("A").getextrema()
-        lum_min, lum_max = img.convert("L").getextrema()
-        if alpha_max == 0 or lum_max - lum_min < 40:
-            problems.append(f"{name}.png looks blank (alpha max {alpha_max}, luminance range {lum_min}-{lum_max})")
+def check_png(path):
+    """Fail loudly instead of publishing missing, corrupt or blank screenshots."""
+    if not path.exists():
+        return f"{path.relative_to(SHOTS)} is missing"
+    try:
+        with Image.open(path) as probe:
+            probe.verify()  # PNG integrity (CRCs, structure)
+    except Exception as ex:  # noqa: BLE001 - any decoder error means a broken file
+        return f"{path.relative_to(SHOTS)} is corrupt: {ex}"
+    img = Image.open(path).convert("RGBA")
+    alpha_min, alpha_max = img.getchannel("A").getextrema()
+    lum_min, lum_max = img.convert("L").getextrema()
+    if img.width < 100 or img.height < 100 or alpha_max == 0 or lum_max - lum_min < 40:
+        return f"{path.relative_to(SHOTS)} looks blank ({img.width}x{img.height}, alpha max {alpha_max}, luminance {lum_min}-{lum_max})"
+    return None
+
+
+def verify(names):
+    problems = [p for p in (check_png(SHOTS / f"{n}.png") for n in names) if p]
     if problems:
         raise SystemExit("Screenshot verification failed:\n  " + "\n  ".join(problems))
 
 
 def main():
-    verify_renders()
-    for name in ("soundboard-expanded", "soundboard-collapsed", "soundboard-drag-drop"):
-        frame_raw(name, 20 if name == "soundboard-drag-drop" else 28)
+    verify(REQUIRED)
+    for name in FRAMED:
+        frame_raw(name, 20 if name in ("soundboard-drag-drop", "v005-audio-mixing") else 28)
 
-    # Hero: application mode next to microphone mode with the soundboard open.
-    app = framed("main-application")
-    sb_raw = SHOTS / "raw" / "soundboard-expanded.png"
-    mic = with_shadow(rounded(Image.open(sb_raw), 28)) if sb_raw.exists() else framed("main-microphone")
-    gap = -30
-    w = app.width + mic.width + gap + 80
-    h = max(mic.height, app.height) + 80
-    hero = gradient((w, h))
-    hero.alpha_composite(app, (40, 40))
-    hero.alpha_composite(mic, (40 + app.width + gap, 40))
-    hero = hero.resize((w // 2, h // 2), Image.LANCZOS)  # 1x for the README, still sharp on hi-dpi screens
+    # Hero: the main window with the soundboard docked on its right, as the user sees it.
+    pair = with_shadow(rounded(Image.open(SHOTS / "raw" / "v005-soundboard-docked-expanded.png"), 28))
+    hero = gradient((pair.width + 80, pair.height + 80))
+    hero.alpha_composite(pair, (40, 40))
+    hero = hero.resize((hero.width // 2, hero.height // 2), Image.LANCZOS)
     hero.convert("RGB").save(SHOTS / "hero.png", optimize=True)
 
     for name in ("application-picker", "setup-help"):
-        if (SHOTS / f"{name}.png").exists():
-            f = framed(name, 24)
-            f = f.resize((f.width // 2, f.height // 2), Image.LANCZOS)
-            f.save(SHOTS / f"{name}-framed.png", optimize=True)
+        f = with_shadow(rounded(Image.open(SHOTS / f"{name}.png"), 24))
+        f = f.resize((f.width // 2, f.height // 2), Image.LANCZOS)
+        f.save(SHOTS / f"{name}-framed.png", optimize=True)
+
+    verify(OUTPUTS)
     print("ok")
 
 

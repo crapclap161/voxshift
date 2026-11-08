@@ -1,0 +1,288 @@
+<Window x:Class="VoxShift.Views.VrControllerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:c="clr-namespace:VoxShift.Controls"
+        xmlns:vm="clr-namespace:VoxShift.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="VoxShift – VR Controller"
+        Width="820" Height="940" MinWidth="520" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBackgroundBrush}"
+        Foreground="{StaticResource PrimaryTextBrush}"
+        Topmost="{Binding AlwaysOnTop}"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        Icon="pack://application:,,,/Assets/app.ico">
+    <Window.InputBindings>
+        <KeyBinding Modifiers="Ctrl" Key="D1" Command="{Binding SelectMicrophoneModeCommand}" />
+        <KeyBinding Modifiers="Ctrl" Key="D2" Command="{Binding SelectApplicationModeCommand}" />
+        <KeyBinding Modifiers="Ctrl" Key="T" Command="{Binding ToggleTalkOverMusicCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding ExitVrControllerModeCommand}" />
+    </Window.InputBindings>
+    <Window.Resources>
+        <c:BoolToVisibilityConverter x:Key="BoolVis" />
+        <c:NotEmptyToVisibilityConverter x:Key="NotEmptyVis" />
+
+        <DataTemplate x:Key="VrSoundTileTemplate" DataType="{x:Type vm:SoundButtonViewModel}">
+            <Button Style="{StaticResource BigSoundTile}" Command="{Binding PlayCommand}" ToolTip="{Binding ToolTip}"
+                    Height="96" Margin="0,0,12,12" FontSize="18" AutomationProperties.Name="{Binding Name}"
+                    AutomationProperties.HelpText="Play or stop this sound" />
+        </DataTemplate>
+
+        <Style x:Key="VrToggle" TargetType="ToggleButton" BasedOn="{StaticResource OptionToggle}">
+            <Setter Property="MinHeight" Value="96" />
+        </Style>
+        <Style x:Key="VrToggleTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="19" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="VrChipValue" TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
+            <Setter Property="FontSize" Value="17" />
+        </Style>
+        <Style x:Key="VrOnOff" TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="Text" Value="OFF" />
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+                    <Setter Property="Text" Value="ON" />
+                    <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="18,14,18,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Image Source="pack://application:,,,/Assets/app.ico" Width="34" Height="34" Margin="0,0,12,0"
+                   RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="VoxShift logo" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="VoxShift · VR Controller" FontSize="22" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding TransmitTitle}" FontSize="14" Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <Button Grid.Column="2" Style="{StaticResource AccentBigButton}" MinHeight="68" Padding="22,0"
+                    Command="{Binding ExitVrControllerModeCommand}" AutomationProperties.Name="Back to full interface"
+                    ToolTip="Return to the full VoxShift window and its docked soundboard (Esc). Audio keeps playing.">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE72B;" FontSize="18" Margin="0,0,10,0" />
+                    <TextBlock Text="BACK TO FULL INTERFACE" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- Status -->
+        <UniformGrid Grid.Row="1" Columns="3" Margin="-4,0,-4,10">
+            <Border Style="{StaticResource StatusChip}" MinHeight="66">
+                <StackPanel>
+                    <TextBlock Text="TRANSMITTING" Style="{StaticResource ChipLabel}" FontSize="12" />
+                    <TextBlock Text="{Binding ModeStateText}" Style="{StaticResource VrChipValue}" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource StatusChip}" MinHeight="66">
+                <StackPanel>
+                    <TextBlock Text="MICROPHONE" Style="{StaticResource ChipLabel}" FontSize="12" />
+                    <TextBlock Text="{Binding MicrophoneStateText}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource VrChipValue}">
+                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMicrophoneLive}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsMicrophoneMutedBySoundboard}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource WaitBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource StatusChip}" MinHeight="66" ToolTip="{Binding Status.OutputMessage}">
+                <StackPanel>
+                    <TextBlock Text="VRCHAT OUTPUT" Style="{StaticResource ChipLabel}" FontSize="12" />
+                    <TextBlock Text="{Binding OutputStateText}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource VrChipValue}">
+                                <Setter Property="Foreground" Value="{StaticResource ErrorBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsOutputConnected}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource OkBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource StatusChip}" MinHeight="66">
+                <StackPanel>
+                    <TextBlock Text="TALK OVER MUSIC" Style="{StaticResource ChipLabel}" FontSize="12" />
+                    <TextBlock Style="{StaticResource VrOnOff}" Tag="{Binding TalkOverMusic}" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource StatusChip}" MinHeight="66">
+                <StackPanel>
+                    <TextBlock Text="AUTO-MUTE MIC" Style="{StaticResource ChipLabel}" FontSize="12" />
+                    <TextBlock Style="{StaticResource VrOnOff}" Tag="{Binding AutoMuteMicrophone}" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource StatusChip}" MinHeight="66">
+                <StackPanel>
+                    <TextBlock Text="SOUNDS" Style="{StaticResource ChipLabel}" FontSize="12" />
+                    <TextBlock Text="{Binding SoundboardStateText}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource VrChipValue}">
+                                <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSoundboardPlaying}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource SoundAccentBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <!-- Source -->
+        <Grid Grid.Row="2" Height="116" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <RadioButton Style="{StaticResource ModeButton}" GroupName="VrMode" Tag="{StaticResource MicActiveBrush}"
+                         IsChecked="{Binding IsMicrophoneMode, Mode=TwoWay}" AutomationProperties.Name="Microphone mode">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE720;" FontSize="34" HorizontalAlignment="Center" />
+                    <TextBlock Text="MICROPHONE" FontWeight="Bold" FontSize="20" Margin="0,8,0,0" HorizontalAlignment="Center" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Grid.Column="2" Style="{StaticResource ModeButton}" GroupName="VrMode" Tag="{StaticResource AppActiveBrush}"
+                         IsChecked="{Binding IsApplicationMode, Mode=TwoWay}" AutomationProperties.Name="Application audio mode">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE8D6;" FontSize="34" HorizontalAlignment="Center" />
+                    <TextBlock Text="APPLICATION AUDIO" FontWeight="Bold" FontSize="20" Margin="0,8,0,0" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </RadioButton>
+        </Grid>
+
+        <!-- Mixing toggles -->
+        <Grid Grid.Row="3" Margin="0,0,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <ToggleButton Style="{StaticResource VrToggle}" Tag="{StaticResource AppAccentBrush}" IsChecked="{Binding TalkOverMusic, Mode=TwoWay}"
+                          AutomationProperties.Name="Talk over music">
+                <StackPanel>
+                    <TextBlock Text="TALK OVER MUSIC" Style="{StaticResource VrToggleTitle}" />
+                    <TextBlock Text="Voice + app audio" Style="{StaticResource Caption}" FontSize="13" />
+                </StackPanel>
+            </ToggleButton>
+            <ToggleButton Grid.Column="2" Style="{StaticResource VrToggle}" Tag="{StaticResource SoundAccentBrush}" IsChecked="{Binding AutoMuteMicrophone, Mode=TwoWay}"
+                          AutomationProperties.Name="Auto-mute microphone on sounds">
+                <StackPanel>
+                    <TextBlock Text="AUTO-MUTE MIC ON SOUNDS" Style="{StaticResource VrToggleTitle}" />
+                    <TextBlock Text="Mic pauses while a sound plays" Style="{StaticResource Caption}" FontSize="13" />
+                </StackPanel>
+            </ToggleButton>
+        </Grid>
+
+        <!-- Soundboard header: collections, stop all, scrolling -->
+        <Grid Grid.Row="4" DataContext="{Binding Soundboard}" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ListBox ItemsSource="{Binding Boards}" SelectedItem="{Binding SelectedBoard}" DisplayMemberPath="Name"
+                     ItemContainerStyle="{StaticResource ChipItem}" Background="Transparent" BorderThickness="0" Padding="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     AutomationProperties.Name="Soundboard collections">
+                <ListBox.Template>
+                    <ControlTemplate TargetType="ListBox">
+                        <ItemsPresenter />
+                    </ControlTemplate>
+                </ListBox.Template>
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+            </ListBox>
+            <Button Grid.Column="1" Style="{StaticResource SquareIconButton}" MinWidth="64" MinHeight="56" Margin="8,0,0,10" VerticalAlignment="Top"
+                    Click="OnPageUp" AutomationProperties.Name="Scroll sounds up" ToolTip="Scroll up">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE70E;" FontSize="18" />
+            </Button>
+            <Button Grid.Column="2" Style="{StaticResource SquareIconButton}" MinWidth="64" MinHeight="56" Margin="8,0,0,10" VerticalAlignment="Top"
+                    Click="OnPageDown" AutomationProperties.Name="Scroll sounds down" ToolTip="Scroll down">
+                <TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="18" />
+            </Button>
+            <Button Grid.Column="3" Style="{StaticResource DangerButton}" MinHeight="56" Padding="22,0" Margin="8,0,0,10" VerticalAlignment="Top"
+                    Command="{Binding StopAllCommand}" AutomationProperties.Name="Stop all sounds">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE71A;" FontSize="16" Margin="0,0,10,0" />
+                    <TextBlock Text="STOP ALL" FontSize="17" FontWeight="Bold" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- Sound grid -->
+        <Border Grid.Row="5" Style="{StaticResource Card}" Margin="0" Padding="12,12,0,0" DataContext="{Binding Soundboard}">
+            <Grid>
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVis}}">
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="34" HorizontalAlignment="Center" Foreground="{StaticResource SoundAccentBrush}" />
+                    <TextBlock Text="No sounds yet" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10,0,4" />
+                    <TextBlock Style="{StaticResource Caption}" FontSize="14" TextAlignment="Center" HorizontalAlignment="Center"
+                               Text="Go back to the full interface and drop audio files onto the soundboard." />
+                </StackPanel>
+                <ScrollViewer x:Name="SoundsScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly"
+                              Visibility="{Binding IsEmpty, Converter={StaticResource BoolVis}, ConverterParameter=invert}">
+                    <ItemsControl ItemsSource="{Binding Sounds}" ItemTemplate="{StaticResource VrSoundTileTemplate}" Focusable="False"
+                                  AutomationProperties.Name="Sounds" Margin="0,0,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="{Binding GridColumns}" VerticalAlignment="Top" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </ScrollViewer>
+                <Border VerticalAlignment="Bottom" Margin="0,0,12,12" Padding="14,10" CornerRadius="10" Background="#F21C1F26"
+                        BorderBrush="#66F5B942" BorderThickness="1" Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource SquareIconButton}" MinWidth="48" MinHeight="48" Margin="10,0,0,0"
+                                Command="{Binding DismissMessageCommand}" AutomationProperties.Name="Dismiss message">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="13" />
+                        </Button>
+                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" FontSize="14" VerticalAlignment="Center" Foreground="{StaticResource WaitBrush}" />
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

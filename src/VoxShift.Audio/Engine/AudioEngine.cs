@@ -15,10 +15,12 @@ namespace VoxShift.Audio.Engine;
 /// <summary>
 /// Owns the complete audio graph:
 /// <code>
-///   Microphone (WASAPI capture) ──┐
-///                                 ├─► AudioRouter (one source at a time, gain, limiter) ─► virtual cable (WASAPI render) ─► VRChat
-///   Application (process loopback)┘
+///   Microphone (WASAPI capture) ───► mic gate ─┐
+///   Application (process loopback) ► app gate ─┼─► AudioRouter (mix, limiter, meter) ─► virtual cable ─► VRChat
+///   Soundboard (decoded clips) ────────────────┘
+///   Soundboard (decoded clips) ─► MonitorMix ─► your headphones (soundboard only, never the microphone)
 /// </code>
+/// Which gates are open is decided by <see cref="MixPolicy"/> (mode, Talk over music, soundboard auto-mute).
 /// All device work happens on a single dedicated MTA "engine thread" (commands are queued to it), which
 /// avoids COM apartment issues and races between UI commands, device notifications and recovery.
 /// A supervisor tick on that thread restarts anything that stopped (device unplugged, app closed …).
@@ -114,6 +116,22 @@ public sealed class AudioEngine : IDisposable
             _log.Info($"Mode → {value}");
             Post(PublishStatus);
         }
+    }
+
+    /// <summary>Talk over music: in application mode, also transmit the microphone. Takes effect within one fade.</summary>
+    public void SetTalkOverMusic(bool enabled)
+    {
+        if (Router.TalkOverMusic == enabled) return;
+        Router.TalkOverMusic = enabled;
+        _log.Info($"Talk over music → {(enabled ? "on" : "off")}");
+    }
+
+    /// <summary>Mute the microphone contribution (VoxShift's mix only) while soundboard sounds play.</summary>
+    public void SetAutoMuteMicrophone(bool enabled)
+    {
+        if (Router.AutoMuteMicrophone == enabled) return;
+        Router.AutoMuteMicrophone = enabled;
+        _log.Info($"Auto-mute microphone during soundboard → {(enabled ? "on" : "off")}");
     }
 
     public void SetMicrophoneVolume(int percent) => Router.Microphone.TargetGain = VolumeMath.PercentToGain(percent);
