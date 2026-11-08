@@ -79,7 +79,7 @@ jobs:
         run: ./scripts/package.ps1 -Version ${{ steps.version.outputs.version }} -PublishDir publish -OutputDir dist
 
       - name: Upload preview build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         continue-on-error: true # artifact storage quota must never fail CI
         with:
           name: VoxShift-preview-win-x64
