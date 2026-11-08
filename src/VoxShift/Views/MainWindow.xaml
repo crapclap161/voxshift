@@ -449,7 +449,7 @@
                         <Grid Visibility="{Binding IsDragOver, Converter={StaticResource BoolVis}}" IsHitTestVisible="False" Margin="-6">
                             <Rectangle RadiusX="10" RadiusY="10" Stroke="{StaticResource SoundAccentBrush}" StrokeThickness="2" StrokeDashArray="5 3">
                                 <Rectangle.Fill>
-                                    <SolidColorBrush Color="#FF14161B" Opacity="0.88" />
+                                    <SolidColorBrush Color="#FF14161B" Opacity="0.95" />
                                 </Rectangle.Fill>
                             </Rectangle>
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12">
