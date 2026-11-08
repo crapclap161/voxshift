@@ -84,6 +84,7 @@ jobs:
         with:
           name: VoxShift-preview-win-x64
           path: |
+            dist/*.exe
             dist/*.zip
             dist/SHA256SUMS.txt
           retention-days: 7

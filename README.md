@@ -50,7 +50,7 @@ Rendered from the real UI with sample devices.</sub></p>
 | | Step |
 |:-:|---|
 | **1** | Install the free **[VB-CABLE](https://vb-audio.com/Cable/)** driver (`VBCABLE_Setup_x64.exe` → *Run as administrator* → *Install Driver*) and **reboot**. |
-| **2** | Download **`VoxShift-v…-win-x64.zip`** from the **[latest release](https://github.com/crapclap161/voxshift/releases/latest)**, extract it and run **`VoxShift.exe`**. There's no installer and no .NET to install. |
+| **2** | Download **`VoxShift-v…-win-x64-portable.exe`** from the **[latest release](https://github.com/crapclap161/voxshift/releases/latest)** and run it. It's portable: no installer, no .NET, nothing to extract. (A ZIP with docs is available too.) |
 | **3** | Choose your **microphone** and the **application** to share (start it first, then press ⟳ or F5), and set both volumes. |
 | **4** | In VRChat: **Settings → Audio & Voice → Microphone → `CABLE Output (VB-Audio Virtual Cable)`**. You only do this once. |
 | **5** | Press **🎤 MICROPHONE** (Ctrl+1) to talk and **🎵 APPLICATION AUDIO** (Ctrl+2) to play music. |
@@ -250,7 +250,7 @@ src/
   VoxShift/                    WPF app (Fluent dark theme): view model, views, tray, global hotkey
 tests/VoxShift.Core.Tests/     xUnit tests (routing isolation, switching, gain, limiter, resampling,
                                drift, settings, migration, process grouping, …)
-scripts/                       package.ps1 (release ZIP + checksums), smoke-test.ps1
+scripts/                       package.ps1 (portable EXE, ZIP, checksums), smoke-test.ps1
 .github/workflows/             ci.yml, release.yml, screenshots.yml
 docs/                          screenshots, release notes, image tooling
 ```
@@ -266,8 +266,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and quality checks.
 
 VoxShift uses [Semantic Versioning](https://semver.org). The version lives in `Directory.Build.props`
 (`<VersionPrefix>`). Pushing a matching tag `vX.Y.Z` runs `.github/workflows/release.yml`, which validates,
-builds, tests, smoke-tests and packages the app, then publishes a GitHub Release with
-`VoxShift-vX.Y.Z-win-x64.zip` and `SHA256SUMS.txt`. See [CHANGELOG.md](CHANGELOG.md) for the history.
+builds, tests, smoke-tests and packages the app, then publishes a GitHub Release with the portable
+`VoxShift-vX.Y.Z-win-x64-portable.exe`, `VoxShift-vX.Y.Z-win-x64.zip` and `SHA256SUMS.txt`. See [CHANGELOG.md](CHANGELOG.md) for the history.
 
 ## 📄 License
 

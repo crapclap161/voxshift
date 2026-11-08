@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Packages a published VoxShift build into the release ZIP and writes SHA-256 checksums.
+  Packages a published VoxShift build: portable EXE, release ZIP and SHA-256 checksums.
 
 .DESCRIPTION
   Used by both the CI and the release workflow so that every build is packaged identically.
@@ -48,12 +48,21 @@ $zip = Join-Path $OutputDir "$name.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path (Join-Path $staging '*') -DestinationPath $zip -CompressionLevel Optimal
 
-$hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-"$hash  $name.zip" | Out-File -Encoding ascii -NoNewline (Join-Path $OutputDir 'SHA256SUMS.txt')
+# Portable single-file executable for direct download (identical to the EXE inside the ZIP).
+$portable = Join-Path $OutputDir "$name-portable.exe"
+Copy-Item $exe $portable -Force
+(Get-Item $portable).LastWriteTimeUtc = $stamp
 
-Write-Host "Packaged $zip"
-Write-Host "SHA256  $hash"
+$sums = foreach ($file in @($portable, $zip)) {
+    $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+    Write-Host "SHA256  $hash  $(Split-Path -Leaf $file)"
+    "$hash  $(Split-Path -Leaf $file)"
+}
+($sums -join "`n") + "`n" | Out-File -Encoding ascii -NoNewline (Join-Path $OutputDir 'SHA256SUMS.txt')
+
+Write-Host "Packaged $zip and $portable"
 if ($env:GITHUB_OUTPUT) {
     "zip=$zip" >> $env:GITHUB_OUTPUT
+    "exe=$portable" >> $env:GITHUB_OUTPUT
     "name=$name" >> $env:GITHUB_OUTPUT
 }

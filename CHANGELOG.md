@@ -38,7 +38,8 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
   (`dotnet format`), culture-invariant logging, safer Win32 interop buffers.
 - Reproducible builds: deterministic compilation, exactly pinned dependencies and SDK feature band,
   normalised archive timestamps and SHA-256 checksums.
-- New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow.
+- New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
+  portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
 [Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.1...HEAD
 [0.0.1]: https://github.com/crapclap161/voxshift/releases/tag/v0.0.1
