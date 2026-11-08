@@ -98,6 +98,9 @@ dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
    git push origin vX.Y.Z
    ```
 
+Alternatively, start the **Release** workflow manually in the Actions tab and enter the tag (e.g. `vX.Y.Z`).
+It creates the tag on the selected commit together with the release.
+
 The release workflow refuses to publish if the tag, `VersionPrefix`, changelog entry or release notes don't match.
 
 ## Reporting bugs and security issues

@@ -3,9 +3,16 @@ name: Release
 # Publishes a GitHub Release when a version tag is pushed, e.g.:
 #   git tag -a v0.0.1 -m "VoxShift v0.0.1" && git push origin v0.0.1
 # Assets: VoxShift-vX.Y.Z-win-x64-portable.exe, VoxShift-vX.Y.Z-win-x64.zip, SHA256SUMS.txt
+# Alternatively run it manually ("Run workflow") with a tag such as v0.0.1: the workflow then creates the
+# tag on the selected commit together with the release.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create, e.g. v0.0.1 (must match VersionPrefix)"
+        required: true
 
 permissions:
   contents: write # create the release and upload assets (GITHUB_TOKEN only, no extra secrets)
@@ -20,7 +27,7 @@ env:
 
 jobs:
   release:
-    name: Build & publish ${{ github.ref_name }}
+    name: Build & publish ${{ inputs.tag || github.ref_name }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,11 +43,12 @@ jobs:
         shell: pwsh
         run: |
           $v = (dotnet msbuild Directory.Build.props -getProperty:VersionPrefix).Trim()
-          $tag = "${{ github.ref_name }}"
+          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ inputs.tag }}" } else { "${{ github.ref_name }}" }
           if ($tag -ne "v$v") { throw "Tag '$tag' does not match the project version 'v$v' in Directory.Build.props." }
           if (-not (Select-String -Path CHANGELOG.md -Pattern "^## \[$([regex]::Escape($v))\]" -Quiet)) { throw "CHANGELOG.md has no entry for $v." }
           if (-not (Test-Path "docs/release-notes/v$v.md")) { throw "Missing release notes docs/release-notes/v$v.md." }
           "version=$v" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
           "SOURCE_DATE_EPOCH=$((git log -1 --format=%ct).Trim())" >> $env:GITHUB_ENV
 
       - name: Restore
@@ -68,10 +76,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: VoxShift ${{ github.ref_name }}
-          body_path: docs/release-notes/${{ github.ref_name }}.md
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: VoxShift ${{ steps.version.outputs.tag }}
+          body_path: docs/release-notes/${{ steps.version.outputs.tag }}.md
           files: |
-            dist/VoxShift-${{ github.ref_name }}-win-x64-portable.exe
-            dist/VoxShift-${{ github.ref_name }}-win-x64.zip
+            dist/VoxShift-${{ steps.version.outputs.tag }}-win-x64-portable.exe
+            dist/VoxShift-${{ steps.version.outputs.tag }}-win-x64.zip
             dist/SHA256SUMS.txt
           fail_on_unmatched_files: true
