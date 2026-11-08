@@ -171,7 +171,7 @@ internal static class ScreenshotRenderer
             Layout(host);
             await Settle(600);
             Layout(host);
-            Save(card, Path.Combine(raw, "soundboard-drag-drop.png"), useDescendantBounds: true);
+            SaveRegion(host, card, Path.Combine(raw, "soundboard-drag-drop.png"), padding: 14);
         }
 
         vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
@@ -228,6 +228,35 @@ internal static class ScreenshotRenderer
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+    }
+
+    /// <summary>
+    /// Renders <paramref name="root"/> completely (the same path as the full-window screenshots) and crops it to the
+    /// bounds of <paramref name="element"/> plus <paramref name="padding"/>, including overlays that extend outside it.
+    /// </summary>
+    private static void SaveRegion(FrameworkElement root, FrameworkElement element, string path, double padding)
+    {
+        int fullW = (int)Math.Ceiling(root.ActualWidth * Scale);
+        int fullH = (int)Math.Ceiling(root.ActualHeight * Scale);
+        var full = new RenderTargetBitmap(fullW, fullH, 96 * Scale, 96 * Scale, PixelFormats.Pbgra32);
+        full.Render(root);
+
+        Rect local = VisualTreeHelper.GetDescendantBounds(element);
+        local.Union(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+        Rect bounds = element.TransformToAncestor(root).TransformBounds(local);
+        bounds.Inflate(padding, padding);
+        bounds.Intersect(new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+        if (bounds.IsEmpty) return;
+
+        var crop = new Int32Rect(
+            (int)Math.Floor(bounds.X * Scale),
+            (int)Math.Floor(bounds.Y * Scale),
+            Math.Min(fullW - (int)Math.Floor(bounds.X * Scale), (int)Math.Ceiling(bounds.Width * Scale)),
+            Math.Min(fullH - (int)Math.Floor(bounds.Y * Scale), (int)Math.Ceiling(bounds.Height * Scale)));
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(new CroppedBitmap(full, crop)));
         using var stream = File.Create(path);
         encoder.Save(stream);
     }

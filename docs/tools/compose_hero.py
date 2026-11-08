@@ -58,7 +58,29 @@ def frame_raw(name, radius=28):
     return f
 
 
+REQUIRED = ["main-microphone", "main-application", "application-picker", "setup-help",
+            "raw/soundboard-expanded", "raw/soundboard-collapsed", "raw/soundboard-drag-drop"]
+
+
+def verify_renders():
+    """Fail loudly instead of publishing missing or blank screenshots."""
+    problems = []
+    for name in REQUIRED:
+        path = SHOTS / f"{name}.png"
+        if not path.exists():
+            problems.append(f"{name}.png is missing")
+            continue
+        img = Image.open(path).convert("RGBA")
+        alpha_min, alpha_max = img.getchannel("A").getextrema()
+        lum_min, lum_max = img.convert("L").getextrema()
+        if alpha_max == 0 or lum_max - lum_min < 40:
+            problems.append(f"{name}.png looks blank (alpha max {alpha_max}, luminance range {lum_min}-{lum_max})")
+    if problems:
+        raise SystemExit("Screenshot verification failed:\n  " + "\n  ".join(problems))
+
+
 def main():
+    verify_renders()
     for name in ("soundboard-expanded", "soundboard-collapsed", "soundboard-drag-drop"):
         frame_raw(name, 20 if name == "soundboard-drag-drop" else 28)
 
