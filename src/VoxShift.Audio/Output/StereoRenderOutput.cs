@@ -6,25 +6,26 @@ using VoxShift.Core.Logging;
 namespace VoxShift.Audio.Output;
 
 /// <summary>
-/// Renders the router's output to the playback side of the virtual cable ("CABLE Input") using
-/// shared-mode, event-driven WASAPI. VRChat then records the cable's "CABLE Output" as its microphone.
-/// The output format follows the cable's own mix format so Windows never has to convert.
+/// Shared-mode, event-driven WASAPI playback of an <see cref="IStereoRenderSource"/>. Used twice:
+/// the router into the virtual cable ("CABLE Input", which VRChat records as its microphone), and the soundboard
+/// monitor mix into your own headphones. The output format follows the device's mix format, so Windows never
+/// has to convert.
 /// </summary>
-public sealed class VirtualCableOutput : IDisposable
+public sealed class StereoRenderOutput : IDisposable
 {
     private const int LatencyMs = 30;
 
     private readonly MMDevice _device;
-    private readonly AudioRouter _router;
+    private readonly IStereoRenderSource _source;
     private readonly ILog _log;
     private WasapiOut? _output;
     private volatile bool _stopRequested;
     private bool _disposed;
 
-    public VirtualCableOutput(MMDevice device, AudioRouter router, ILog log)
+    public StereoRenderOutput(MMDevice device, IStereoRenderSource source, ILog log)
     {
         _device = device;
-        _router = router;
+        _source = source;
         _log = log;
         DeviceId = device.ID;
         DeviceName = device.FriendlyName;
@@ -40,7 +41,7 @@ public sealed class VirtualCableOutput : IDisposable
 
     public bool IsRunning { get; private set; }
 
-    public event Action<VirtualCableOutput, Exception?>? Stopped;
+    public event Action<StereoRenderOutput, Exception?>? Stopped;
 
     public void Start()
     {
@@ -55,9 +56,9 @@ public sealed class VirtualCableOutput : IDisposable
 
             SampleRate = mix.SampleRate;
             Channels = Math.Clamp(mix.Channels, 1, 8);
-            _router.SetOutputRate(SampleRate);
+            _source.SetOutputRate(SampleRate);
 
-            var provider = new RouterWaveProvider(_router, SampleRate, Channels);
+            var provider = new SourceWaveProvider(_source, SampleRate, Channels);
             var output = new WasapiOut(_device, AudioClientShareMode.Shared, useEventSync: true, latency: LatencyMs);
             output.PlaybackStopped += OnPlaybackStopped;
             output.Init(provider);
@@ -70,7 +71,7 @@ public sealed class VirtualCableOutput : IDisposable
         catch (Exception ex)
         {
             Cleanup();
-            throw new AudioCaptureException($"Could not open the virtual cable \"{DeviceName}\": {ex.Message}", ex.HResult, ex);
+            throw new AudioCaptureException($"Could not open \"{DeviceName}\": {ex.Message}", ex.HResult, ex);
         }
     }
 
@@ -103,20 +104,20 @@ public sealed class VirtualCableOutput : IDisposable
     }
 
     /// <summary>
-    /// Pull adapter: WASAPI asks for bytes, the router renders stereo float which is mapped to the
+    /// Pull adapter: WASAPI asks for bytes, the source renders stereo float which is mapped to the
     /// device's channel count. Always returns the full requested amount (silence if needed) so playback
     /// never stops on its own.
     /// </summary>
-    private sealed class RouterWaveProvider : IWaveProvider
+    private sealed class SourceWaveProvider : IWaveProvider
     {
-        private readonly AudioRouter _router;
+        private readonly IStereoRenderSource _source;
         private readonly int _channels;
         private float[] _stereo = new float[4096 * 2];
         private float[] _mapped = new float[4096 * 8];
 
-        public RouterWaveProvider(AudioRouter router, int sampleRate, int channels)
+        public SourceWaveProvider(IStereoRenderSource source, int sampleRate, int channels)
         {
-            _router = router;
+            _source = source;
             _channels = channels;
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
         }
@@ -132,7 +133,7 @@ public sealed class VirtualCableOutput : IDisposable
 
             try
             {
-                _router.Render(_stereo, frames);
+                _source.Render(_stereo, frames);
             }
             catch (Exception)
             {

@@ -423,6 +423,43 @@
                                     </Button>
                                 </Grid>
 
+                                <!-- Local monitoring: hear the sounds yourself -->
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox IsChecked="{Binding MonitorEnabled}" VerticalAlignment="Center" Margin="0,0,10,0"
+                                              AutomationProperties.Name="Hear sounds myself"
+                                              ToolTip="Also play soundboard sounds on your Windows default playback device (your headphones)">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource Icon}" Text="&#xE7F6;" FontSize="13" Margin="0,0,6,0"
+                                                       Foreground="{StaticResource SoundAccentBrush}" />
+                                            <TextBlock Text="Hear sounds myself" FontSize="12" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </CheckBox>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="200" SmallChange="1" LargeChange="10" VerticalAlignment="Center"
+                                            Value="{Binding MonitorVolume, Mode=TwoWay}" IsEnabled="{Binding MonitorEnabled}"
+                                            AutomationProperties.Name="Monitor volume"
+                                            ToolTip="How loud you hear the sounds yourself (does not change what VRChat hears)" />
+                                    <TextBlock Grid.Column="2" Text="{Binding MonitorVolume, StringFormat={}{0} %}" FontSize="12" Margin="10,0,0,0"
+                                               VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" MinWidth="40" TextAlignment="Right" />
+                                </Grid>
+                                <TextBlock Margin="0,4,0,0" FontSize="11.5" TextWrapping="Wrap" Text="{Binding MonitorStatus}"
+                                           Visibility="{Binding MonitorStatus, Converter={StaticResource NotEmptyVis}}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding MonitorStatusIsWarning}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource WaitBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
                                 <!-- Inline feedback -->
                                 <DockPanel Margin="0,8,0,0" Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}">
                                     <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Padding="5,2" Margin="8,0,0,0" VerticalAlignment="Top"

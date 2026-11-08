@@ -7,7 +7,7 @@ namespace VoxShift.Core.Audio;
 /// sources are <b>never mixed</b> – not even during the transition – and there is no click or pop.
 /// The inactive source is continuously trimmed and discarded on the render thread.
 /// </summary>
-public sealed class AudioRouter
+public sealed class AudioRouter : IStereoRenderSource
 {
     private const double FadeMs = 8;
 

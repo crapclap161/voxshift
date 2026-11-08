@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-11-08
+
+### Fixed
+- **You can now hear your own soundboard sounds.** Before, sounds were only sent to VRChat (the virtual microphone),
+  so you didn't hear what you played.
+
+### Added
+- **Hear sounds myself** option in the soundboard (on by default) with its own volume slider (0–200 %). Each sound
+  also plays on your Windows default playback device (your headphones), independent of the volume VRChat hears.
+- The monitor follows Windows default-device changes and recovers after device errors. It never plays into the
+  virtual cable: if the default playback device is the cable, monitoring pauses with a hint, so VRChat never hears
+  sounds twice.
+- Only the soundboard is monitored. Your microphone is not echoed back to you.
+- If the virtual microphone isn't running, sounds still play in your headphones, with a hint that VRChat can't hear
+  them.
+- Settings schema 3 (`SoundboardMonitorEnabled`, `SoundboardMonitorVolumePercent`). Settings from 0.0.1 to 0.0.3
+  load unchanged, with monitoring enabled.
+- 12 new unit tests (monitor mix, independence of the VRChat and headphone mixes, no mic/app audio in the monitor,
+  limiter, never monitoring into the cable, settings migration). The smoke test reports the monitor state.
+
+### Changed
+- The WASAPI output is generalized (`StereoRenderOutput`) and drives both the virtual cable and the headphone
+  monitor. Soundboard voices for a device are dropped when it stops, so no stale sounds play later.
+
 ## [0.0.3] - 2026-11-08
 
 **Soundboard Feature Release.** VoxShift can now play local sound files into VRChat, on top of your microphone or
@@ -99,7 +123,8 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
 - New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
   portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
-[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/crapclap161/voxshift/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/crapclap161/voxshift/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/crapclap161/voxshift/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/crapclap161/voxshift/releases/tag/v0.0.1

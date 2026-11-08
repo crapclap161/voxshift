@@ -70,6 +70,9 @@ internal static class ScreenshotRenderer
             ApplicationMessage = "Capturing \"Spotify\" (PID 14872, including its child processes).",
             ApplicationName = "Spotify",
             ApplicationProcessId = 14872,
+            MonitorState = ComponentState.Running,
+            MonitorMessage = "You hear sounds on \"Headphones (Valve Index)\".",
+            MonitorDeviceName = "Headphones (Valve Index)",
         };
 
         // Demo soundboard (screenshot mode only: it lives in a temporary settings object and is never saved

@@ -97,7 +97,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _store.Save(_settings);
         };
 
-        Soundboard = new SoundboardViewModel(settings, engine.Soundboard, dialogs, ScheduleSave, log);
+        Soundboard = new SoundboardViewModel(settings, engine.Soundboard, dialogs, ScheduleSave, log, engine.SetMonitorEnabled, engine.SetMonitorVolume);
 
         _engine.StatusChanged += s => _dispatcher.BeginInvoke(() => ApplyStatus(s));
         _engine.DevicesChanged += () => _dispatcher.BeginInvoke(async () => await LoadDevicesAsync());
@@ -402,6 +402,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         Status = status;
         Soundboard.OutputAvailable = status.OutputState == ComponentState.Running;
+        Soundboard.MonitorAvailable = status.MonitorState == ComponentState.Running;
+        Soundboard.MonitorStatus = status.MonitorMessage;
+        Soundboard.MonitorStatusIsWarning = status.MonitorState is ComponentState.Error or ComponentState.Waiting;
         OnModeOrStatusChanged();
     }
 

@@ -35,7 +35,11 @@ public sealed class AudioEngine : IDisposable
 
     // ---- engine-thread state ---------------------------------------------------------------------
     private DeviceService? _devices;
-    private VirtualCableOutput? _output;
+    private StereoRenderOutput? _output;
+    private StereoRenderOutput? _monitor;
+    private MMDevice? _monitorDevice;
+    private bool _monitorEnabled = true;
+    private DateTime _monitorRetryAt = DateTime.MinValue;
     private MMDevice? _outputDevice;
     private MicrophoneCapture? _mic;
     private MMDevice? _micDevice;
@@ -61,7 +65,8 @@ public sealed class AudioEngine : IDisposable
     {
         _log = log;
         Router = new AudioRouter(48000, initialMode);
-        Soundboard = new SoundboardPlayer(Router, log);
+        Monitor = new MonitorMix();
+        Soundboard = new SoundboardPlayer(Router, Monitor, () => _output?.IsRunning == true, () => _monitor?.IsRunning == true, log);
         _status = _status with { Mode = initialMode, ProcessLoopbackSupported = ProcessLoopbackCapture.IsSupported };
         _thread = new Thread(ThreadMain) { IsBackground = true, Name = "Audio engine" };
         _thread.SetApartmentState(ApartmentState.MTA);
@@ -70,11 +75,27 @@ public sealed class AudioEngine : IDisposable
     /// <summary>The router; exposed for meters. Mode and gains are lock-free and may be set from any thread.</summary>
     public AudioRouter Router { get; }
 
-    /// <summary>Soundboard playback into the virtual microphone (thread-safe).</summary>
+    /// <summary>Soundboard monitor mix played on your own default playback device.</summary>
+    public MonitorMix Monitor { get; }
+
+    /// <summary>Soundboard playback into the virtual microphone and your headphones (thread-safe).</summary>
     public SoundboardPlayer Soundboard { get; }
 
     /// <summary>Sets the soundboard volume (0–200 %), independent of microphone and application volume.</summary>
     public void SetSoundboardVolume(int percent) => Router.Soundboard.Volume = VolumeMath.PercentToGain(percent);
+
+    /// <summary>Volume of the soundboard in your own headphones (0–200 %), independent of what VRChat hears.</summary>
+    public void SetMonitorVolume(int percent) => Monitor.Mixer.Volume = VolumeMath.PercentToGain(percent);
+
+    /// <summary>Turns local soundboard monitoring (hearing the sounds yourself) on or off.</summary>
+    public void SetMonitorEnabled(bool enabled) => Post(() =>
+    {
+        if (_monitorEnabled == enabled) return;
+        _monitorEnabled = enabled;
+        if (!enabled) StopMonitor();
+        _monitorRetryAt = DateTime.MinValue;
+        Ensure();
+    });
 
     /// <summary>Raised on the engine thread whenever <see cref="Status"/> changes.</summary>
     public event Action<EngineStatus>? StatusChanged;
@@ -187,6 +208,7 @@ public sealed class AudioEngine : IDisposable
                 _devicesDirty = true;
                 _outputRetryAt = DateTime.MinValue;
                 _micRetryAt = DateTime.MinValue;
+                _monitorRetryAt = DateTime.MinValue;
                 _nextTick = DateTime.UtcNow + TimeSpan.FromMilliseconds(300); // debounce bursts of notifications
             });
         }
@@ -230,6 +252,7 @@ public sealed class AudioEngine : IDisposable
         }
 
         // Shutdown on the engine thread so COM objects are released in their own apartment.
+        StopMonitor();
         StopApplication();
         StopMicrophone();
         StopOutput();
@@ -253,6 +276,7 @@ public sealed class AudioEngine : IDisposable
         EnsureOutput();
         EnsureMicrophone(devicesChanged);
         EnsureApplication();
+        EnsureMonitor();
         UpdateWarning();
         PublishStatus();
 
@@ -311,7 +335,7 @@ public sealed class AudioEngine : IDisposable
             return;
         }
 
-        var output = new VirtualCableOutput(device, Router, _log);
+        var output = new StereoRenderOutput(device, Router, _log);
         try
         {
             output.Stopped += (o, ex) => Post(() =>
@@ -557,11 +581,93 @@ public sealed class AudioEngine : IDisposable
 
     private EngineStatus? _lastPublished;
 
+    /// <summary>
+    /// Keeps the soundboard monitor on the Windows default playback device (your headphones), following default
+    /// device changes. Never monitors into the virtual cable, because VRChat would hear every sound twice.
+    /// </summary>
+    private void EnsureMonitor()
+    {
+        if (!_monitorEnabled)
+        {
+            if (_monitor is not null) StopMonitor();
+            SetMonitorStatus(ComponentState.Idle, "Off: soundboard sounds are only sent to VRChat.", null);
+            return;
+        }
+
+        string? defaultId = _devices!.GetDefaultId(DataFlow.Render);
+        if (_monitor is { IsRunning: true } && _monitor.DeviceId == defaultId) return;
+
+        if (_monitor is not null)
+        {
+            StopMonitor();
+            _monitorRetryAt = DateTime.MinValue;
+        }
+
+        if (DateTime.UtcNow < _monitorRetryAt) return;
+
+        var device = _devices.TryGetDefault(DataFlow.Render);
+        if (device is null)
+        {
+            SetMonitorStatus(ComponentState.Waiting, "No playback device found for monitoring.", null);
+            _monitorRetryAt = DateTime.UtcNow + RetryDelay;
+            return;
+        }
+
+        string name = device.FriendlyName;
+        if (!MonitorMix.IsSafeMonitorDevice(device.ID, name, _output?.DeviceId))
+        {
+            device.Dispose();
+            SetMonitorStatus(ComponentState.Error,
+                $"Your Windows default playback device is \"{name}\". Set your headphones as default to hear soundboard sounds.", name);
+            _monitorRetryAt = DateTime.UtcNow + RetryDelay;
+            return;
+        }
+
+        var monitor = new StereoRenderOutput(device, Monitor, _log);
+        try
+        {
+            monitor.Stopped += (m, ex) => Post(() =>
+            {
+                if (!ReferenceEquals(m, _monitor)) return;
+                _log.Warn($"Monitor output \"{m.DeviceName}\" stopped: {ex?.Message}");
+                StopMonitor();
+                _monitorRetryAt = DateTime.UtcNow + TimeSpan.FromMilliseconds(500);
+                Ensure();
+            });
+            monitor.Start();
+            _monitor = monitor;
+            _monitorDevice = device;
+            SetMonitorStatus(ComponentState.Running, $"You hear sounds on \"{name}\".", name);
+        }
+        catch (Exception ex)
+        {
+            monitor.Dispose();
+            device.Dispose();
+            _monitorRetryAt = DateTime.UtcNow + RetryDelay;
+            _log.Warn("Starting soundboard monitor failed.", ex);
+            SetMonitorStatus(ComponentState.Error, "Could not play sounds on your headphones: " + ex.Message, name);
+        }
+    }
+
+    private void SetMonitorStatus(ComponentState state, string message, string? device) =>
+        _status = _status with { MonitorState = state, MonitorMessage = message, MonitorDeviceName = device };
+
+    private void StopMonitor()
+    {
+        var m = _monitor;
+        _monitor = null;
+        m?.Dispose();
+        _monitorDevice?.Dispose();
+        _monitorDevice = null;
+        Monitor.Mixer.Clear();
+    }
+
     private void StopOutput()
     {
         var o = _output;
         _output = null;
         o?.Dispose();
+        Router.Soundboard.Clear();
         _outputDevice?.Dispose();
         _outputDevice = null;
     }

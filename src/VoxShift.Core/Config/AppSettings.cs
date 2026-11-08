@@ -7,7 +7,7 @@ namespace VoxShift.Core.Config;
 /// <summary>Everything that is remembered between application runs.</summary>
 public sealed class AppSettings
 {
-    public const int CurrentSchemaVersion = 2; // 2: soundboard (v0.0.3); older files load with defaults
+    public const int CurrentSchemaVersion = 3; // 2: soundboard (v0.0.3), 3: soundboard monitoring (v0.0.4); older files load with defaults
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -54,6 +54,12 @@ public sealed class AppSettings
 
     public bool SoundboardExpanded { get; set; } = true;
 
+    /// <summary>Also play soundboard sounds on your own default playback device (headphones).</summary>
+    public bool SoundboardMonitorEnabled { get; set; } = true;
+
+    /// <summary>Soundboard volume in your own headphones, independent of what VRChat hears.</summary>
+    public int SoundboardMonitorVolumePercent { get; set; } = 70;
+
     public double? WindowLeft { get; set; }
 
     public double? WindowTop { get; set; }
@@ -72,6 +78,7 @@ public sealed class AppSettings
         ApplicationVolumePercent = VolumeMath.ClampPercent(ApplicationVolumePercent);
         if (!Enum.IsDefined(Mode)) Mode = AudioSource.Microphone;
         SoundboardVolumePercent = VolumeMath.ClampPercent(SoundboardVolumePercent);
+        SoundboardMonitorVolumePercent = VolumeMath.ClampPercent(SoundboardMonitorVolumePercent);
         SelectedSoundboardId ??= string.Empty;
         NormalizeSoundboards();
         if (WindowLeft is { } l && (double.IsNaN(l) || double.IsInfinity(l))) WindowLeft = null;

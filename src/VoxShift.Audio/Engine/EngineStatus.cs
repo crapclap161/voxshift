@@ -47,6 +47,13 @@ public sealed record EngineStatus
 
     public bool ProcessLoopbackSupported { get; init; } = true;
 
+    /// <summary>Local soundboard monitoring (your headphones).</summary>
+    public ComponentState MonitorState { get; init; } = ComponentState.Idle;
+
+    public string MonitorMessage { get; init; } = string.Empty;
+
+    public string? MonitorDeviceName { get; init; }
+
     public AudioSource Mode { get; init; }
 
     /// <summary>Non-fatal configuration problem worth showing (e.g. feedback-loop risk).</summary>

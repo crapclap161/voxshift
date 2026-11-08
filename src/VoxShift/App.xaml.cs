@@ -170,6 +170,7 @@ public partial class App : Application
         foreach (var a in _vm.Applications.Take(15)) sb.AppendLine(inv, $"  - {a.DisplayName} [{a.ExeName}] pid={a.ProcessId} {a.Detail}");
         sb.AppendLine("Process loopback probe (own process): " + await Task.Run(ProbeProcessLoopback));
         sb.AppendLine("Soundboard probe: " + await ProbeSoundboardAsync());
+        sb.AppendLine(inv, $"Soundboard monitor: {_engine.Status.MonitorState} – {_engine.Status.MonitorMessage}");
         WriteSmokeReport(sb.ToString());
 
         _window.ExitApplication();
@@ -213,7 +214,7 @@ public partial class App : Application
             var sound = _vm.Soundboard.Sounds.FirstOrDefault(s => s.FilePath == wav);
             if (sound is null) return "FAILED: import did not add the file";
 
-            var result = await _engine!.Soundboard.PlayAsync(sound.Id, wav);
+            var result = await _engine!.Soundboard.PlayAsync(sound.Id, wav, ignoreOutputState: true);
             bool started = result.Status == VoxShift.Audio.Soundboard.PlayStatus.Started && _engine.Router.Soundboard.IsPlaying(sound.Id);
             _engine.Soundboard.StopAll();
             _engine.Router.Soundboard.Clear();

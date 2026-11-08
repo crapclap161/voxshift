@@ -97,6 +97,7 @@ the <b>soundboard</b> open and two sounds playing. Rendered from the real UI wit
 - Multiple soundboard collections that are created automatically on the first drop
 - Collapsible soundbar, sounds that play simultaneously, and Stop all
 - Independent soundboard volume (0–200 %)
+- Hear the sounds yourself in your headphones, with its own volume
 - Plays your original files in place, never copied
 
 **Application capture**
@@ -191,7 +192,8 @@ If you move or rename a file later, its button shows a ⚠ warning instead of fa
 | Stop one sound | Click the playing button again, or right-click → **Stop** |
 | Play the same sound overlapping | Right-click → **Play (overlap)** |
 | Stop everything | **Stop all** (in the footer, and in the header while sounds play) |
-| Soundboard volume | The soundboard slider (0–200 %). It is independent of the microphone and application volume, and the header shows the value. |
+| Soundboard volume | The soundboard slider (0–200 %) sets how loud VRChat hears the sounds. It is independent of the microphone and application volume, and the header shows the value. |
+| Hear sounds yourself | **Hear sounds myself** (on by default) also plays every sound in your headphones, with its own volume slider. It doesn't change what VRChat hears. |
 | Rename, relink, remove | Right-click a button → **Rename…**, **Relink file…**, **Show in Explorer**, **Remove from soundboard** |
 
 ### Multiple soundboards
@@ -211,6 +213,26 @@ The soundboard is an extra layer on top of the active source. The basic rule sti
 application audio are never sent together**, and switching modes doesn't interrupt sounds that are playing. Soundboard
 audio goes through VoxShift's limiter and shows up in the *To VRChat* meter.
 
+### Hear the sounds yourself
+
+With **Hear sounds myself** enabled, every sound you play also comes out of your **Windows default playback device**
+(your headphones), so you hear exactly what you just sent to VRChat:
+
+| Sound goes to | Volume control | Contains |
+|---|---|---|
+| VRChat (virtual microphone) | Soundboard volume slider | microphone **or** application **+** soundboard |
+| Your headphones | *Hear sounds myself* slider | soundboard only |
+
+- Only the soundboard is played back to you. Your own microphone is never echoed into your headphones, and the
+  captured application plays there as usual anyway.
+- VoxShift follows your Windows default playback device. If you switch from speakers to headphones, monitoring
+  switches with you.
+- For safety, VoxShift never monitors into the virtual cable. If your Windows default playback device *is* CABLE Input,
+  monitoring pauses and VoxShift shows a hint, because otherwise VRChat would hear every sound twice. Set your
+  headphones as the default playback device.
+- If the virtual microphone isn't running (e.g. VB-CABLE not installed yet), sounds still play in your headphones and
+  VoxShift tells you that VRChat can't hear them.
+
 ### Saved automatically
 
 Collections, buttons, names, file paths, the soundboard volume, the selected collection and the collapsed or expanded
@@ -218,8 +240,7 @@ state are saved to `%APPDATA%\VoxShift\settings.json` right away. They are there
 data is stored, only the paths to your files.
 
 > [!NOTE]
-> Soundboard sounds are sent to VRChat only, so you don't hear them in your own headphones. Each sound is decoded
-> once and kept in memory, up to 5 minutes per sound. Use application mode for long music.
+> Each sound is decoded once and kept in memory, up to 5 minutes per sound. Use application mode for long music.
 
 ## 💻 Supported platforms and requirements
 
@@ -285,8 +306,9 @@ Settings are stored in `%APPDATA%\VoxShift\settings.json` and logs in `%LOCALAPP
 - **A virtual audio driver is required.** Windows has no driver-free way for an app to create a microphone.
 - **Exclusive-mode microphones** can't be captured while another program holds them exclusively.
 - **Elevated games:** if a focused program runs as administrator, Windows may not deliver the global hotkey to VoxShift.
-- **Soundboard:** sounds are sent to VRChat only (no local monitoring), OGG/Opus files aren't supported by Windows'
-  built-in decoders, and sounds longer than 5 minutes are cut. Sounds only play while the virtual microphone is running.
+- **Soundboard:** OGG/Opus files aren't supported by Windows' built-in decoders, and sounds longer than 5 minutes are
+  cut. Monitoring always uses the Windows default playback device; picking a different monitor device isn't
+  supported yet.
 
 ## 🛠 Troubleshooting
 
@@ -307,6 +329,7 @@ Settings are stored in `%APPDATA%\VoxShift\settings.json` and logs in `%LOCALAPP
 | Music sounds choppy in VRChat | Turn off VRChat's Noise Suppression. Lower the volume if **LIMIT** is lit. |
 | The hotkey doesn't register | Another program uses it. Click the hotkey box and press a different combination. |
 | A soundboard button shows ⚠ | The file was moved, renamed or deleted. Right-click → **Relink file…** |
+| I don't hear soundboard sounds myself | Enable **Hear sounds myself** and raise its slider. Make sure your headphones are the Windows default playback device (not CABLE Input). The hint below the slider shows which device is used. |
 | *“Unsupported format”* when dropping | Convert the file to WAV, MP3, FLAC, M4A/AAC or WMA (OGG/Opus isn't supported). |
 | Clicking a sound does nothing in VRChat | The virtual microphone must be running (green *Virtual microphone* card), and VRChat must use CABLE Output. Check the soundboard volume. |
 | Anything else | Use **Open log folder** and check `VoxShift.log`, then [open an issue](https://github.com/crapclap161/voxshift/issues). |

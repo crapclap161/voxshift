@@ -42,11 +42,31 @@ public sealed class SoundboardViewModel : ObservableObject
     private bool _messageIsError;
     private bool _anyPlaying;
     private bool _outputAvailable = true;
+    private bool _monitorAvailable;
+    private bool _monitorEnabled;
+    private int _monitorVolume;
+    private string _monitorStatus = string.Empty;
+    private bool _monitorStatusIsWarning;
+    private readonly Action<bool> _setMonitorEnabled;
+    private readonly Action<int> _setMonitorVolume;
     private bool _suppressSelection;
     private int _missingCheckCountdown;
 
-    public SoundboardViewModel(AppSettings settings, SoundboardPlayer player, IDialogService dialogs, Action save, ILog log)
+    public SoundboardViewModel(
+        AppSettings settings,
+        SoundboardPlayer player,
+        IDialogService dialogs,
+        Action save,
+        ILog log,
+        Action<bool>? setMonitorEnabled = null,
+        Action<int>? setMonitorVolume = null)
     {
+        _setMonitorEnabled = setMonitorEnabled ?? (_ => { });
+        _setMonitorVolume = setMonitorVolume ?? (_ => { });
+        _monitorEnabled = settings.SoundboardMonitorEnabled;
+        _monitorVolume = settings.SoundboardMonitorVolumePercent;
+        _setMonitorEnabled(_monitorEnabled);
+        _setMonitorVolume(_monitorVolume);
         _settings = settings;
         _library = new SoundboardLibrary(settings);
         _player = player;
@@ -123,6 +143,53 @@ public sealed class SoundboardViewModel : ObservableObject
             _settings.SoundboardVolumePercent = value;
             _save();
         }
+    }
+
+    /// <summary>Hear soundboard sounds yourself (played on your Windows default playback device).</summary>
+    public bool MonitorEnabled
+    {
+        get => _monitorEnabled;
+        set
+        {
+            if (!Set(ref _monitorEnabled, value)) return;
+            _settings.SoundboardMonitorEnabled = value;
+            _setMonitorEnabled(value);
+            _save();
+        }
+    }
+
+    /// <summary>Volume in your own headphones (0–200 %), independent of the volume VRChat hears.</summary>
+    public int MonitorVolume
+    {
+        get => _monitorVolume;
+        set
+        {
+            value = VolumeMath.ClampPercent(value);
+            if (!Set(ref _monitorVolume, value)) return;
+            _settings.SoundboardMonitorVolumePercent = value;
+            _setMonitorVolume(value);
+            _save();
+        }
+    }
+
+    /// <summary>Set from the engine status: whether the headphone monitor output is running.</summary>
+    public bool MonitorAvailable
+    {
+        get => _monitorAvailable;
+        set => Set(ref _monitorAvailable, value);
+    }
+
+    /// <summary>e.g. "You hear sounds on "Headphones (Arctis 7)"."</summary>
+    public string MonitorStatus
+    {
+        get => _monitorStatus;
+        set => Set(ref _monitorStatus, value);
+    }
+
+    public bool MonitorStatusIsWarning
+    {
+        get => _monitorStatusIsWarning;
+        set => Set(ref _monitorStatusIsWarning, value);
     }
 
     /// <summary>True while files are dragged over the soundbar (drop-target highlight).</summary>
@@ -260,9 +327,9 @@ public sealed class SoundboardViewModel : ObservableObject
         }
 
         sound.IsMissing = false;
-        if (!OutputAvailable)
+        if (!OutputAvailable && !MonitorAvailable)
         {
-            ShowMessage("The virtual microphone isn't running, so VRChat can't hear sounds yet. Check the Virtual microphone section.", error: true);
+            ShowMessage("No output is running: the virtual microphone (VRChat) isn't available and monitoring is off or has no device.", error: true);
             return;
         }
 
@@ -280,7 +347,15 @@ public sealed class SoundboardViewModel : ObservableObject
                     ShowMessage(result.Message ?? "Playback failed.", error: true);
                     break;
                 default:
-                    if (MessageIsError) Message = null;
+                    if (!OutputAvailable)
+                    {
+                        ShowMessage("Playing only in your headphones: VRChat can't hear it because the virtual microphone isn't running.", error: true);
+                    }
+                    else if (MessageIsError)
+                    {
+                        Message = null;
+                    }
+
                     break;
             }
         }
@@ -462,6 +537,9 @@ public sealed class SoundboardViewModel : ObservableObject
         AnyPlaying = sounds.Any(s => s.Progress >= 0);
         IsDragOver = dragOver;
         DropHint = dropHint;
+        MonitorAvailable = true;
+        MonitorStatus = "You hear sounds on \"Headphones (Valve Index)\".";
+        MonitorStatusIsWarning = false;
         Message = null;
         OnPropertyChanged(nameof(HasBoards));
         RaiseListChanged();
