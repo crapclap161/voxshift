@@ -135,6 +135,58 @@ public partial class MainWindow : Window
         Topmost = _vm.AlwaysOnTop; // … then restore the user's preference
     }
 
+    // ---- Soundboard drag & drop (Windows Explorer) ----------------------------------------------
+
+    private static string[] DroppedPaths(DragEventArgs e) =>
+        e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] paths ? paths : [];
+
+    private void OnSoundboardDragEnter(object sender, DragEventArgs e) => UpdateDragState(e);
+
+    private void OnSoundboardDragOver(object sender, DragEventArgs e) => UpdateDragState(e);
+
+    private void UpdateDragState(DragEventArgs e)
+    {
+        var paths = DroppedPaths(e);
+        int count = SoundboardViewModel.CountImportable(paths);
+        if (count > 0)
+        {
+            // "Link" matches what happens: the file is referenced, never copied or moved.
+            e.Effects = (e.AllowedEffects & DragDropEffects.Link) != 0 ? DragDropEffects.Link : DragDropEffects.Copy;
+            _vm.Soundboard.DropHint = paths.Length == 1 && count == 1 ? "Drop to add 1 sound" : $"Drop to add sounds ({count} item{(count == 1 ? string.Empty : "s")})";
+            _vm.Soundboard.IsDragOver = true;
+        }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+            _vm.Soundboard.DropHint = "Unsupported file type";
+            _vm.Soundboard.IsDragOver = paths.Length > 0;
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnSoundboardDragLeave(object sender, DragEventArgs e)
+    {
+        // DragLeave also fires when moving between child elements; only clear when the pointer left the card.
+        var card = (FrameworkElement)sender;
+        var pos = e.GetPosition(card);
+        if (pos.X <= 0 || pos.Y <= 0 || pos.X >= card.ActualWidth || pos.Y >= card.ActualHeight) _vm.Soundboard.IsDragOver = false;
+        e.Handled = true;
+    }
+
+    private void OnSoundboardDrop(object sender, DragEventArgs e)
+    {
+        _vm.Soundboard.IsDragOver = false;
+        var paths = DroppedPaths(e);
+        if (paths.Length > 0)
+        {
+            _vm.Soundboard.ImportFiles(paths);
+            Activate();
+        }
+
+        e.Handled = true;
+    }
+
     private void ShowSetupGuide()
     {
         if (!IsVisible) ShowFromTray();

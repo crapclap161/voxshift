@@ -1,7 +1,8 @@
 namespace VoxShift.Core.Audio;
 
 /// <summary>
-/// The heart of the switcher. Exactly one <see cref="SourceChannel"/> is transmitted at any time.
+/// The heart of the switcher. Exactly one <see cref="SourceChannel"/> is transmitted at any time, optionally
+/// with the <see cref="SoundboardMixer"/> layered on top.
 /// A mode change fades the current source out completely (~8 ms), then fades the new one in, so the two
 /// sources are <b>never mixed</b> – not even during the transition – and there is no click or pop.
 /// The inactive source is continuously trimmed and discarded on the render thread.
@@ -24,6 +25,7 @@ public sealed class AudioRouter
         OutputRate = outputRate;
         Microphone = new SourceChannel("Microphone", outputRate);
         Application = new SourceChannel("Application", outputRate);
+        Soundboard = new SoundboardMixer(outputRate);
         _limiter = new PeakLimiter(outputRate);
         _requested = (int)initialSource;
         _active = (int)initialSource;
@@ -33,6 +35,13 @@ public sealed class AudioRouter
     public SourceChannel Microphone { get; }
 
     public SourceChannel Application { get; }
+
+    /// <summary>
+    /// Soundboard layer. It is mixed on top of whichever source is transmitted, after the source fade and before the
+    /// limiter and output meter, so it is unaffected by mode switches and can never cause microphone or
+    /// application leakage.
+    /// </summary>
+    public SoundboardMixer Soundboard { get; }
 
     public int OutputRate { get; private set; }
 
@@ -59,6 +68,7 @@ public sealed class AudioRouter
             OutputRate = outputRate;
             Microphone.SetOutputRate(outputRate);
             Application.SetOutputRate(outputRate);
+            Soundboard.SetOutputRate(outputRate);
             _limiter.SetSampleRate(outputRate);
             _limiter.Reset();
             _fadeStep = (float)(1000.0 / (FadeMs * outputRate));
@@ -130,6 +140,10 @@ public sealed class AudioRouter
         }
 
         _fade = fade;
+
+        // Soundboard layer: independent of the active source and of the switching fade.
+        Soundboard.MixInto(output, frames);
+
         _limiter.Process(output, frames);
 
         float peak = 0f;

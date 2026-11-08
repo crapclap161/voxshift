@@ -6,6 +6,51 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-11-08
+
+**Soundboard Feature Release.** VoxShift can now play local sound files into VRChat, on top of your microphone or
+application audio.
+
+### Added
+- **Local soundboard.** Click a button to play a sound through the virtual microphone, so VRChat hears it. Several
+  sounds can play at once, and clicking a playing sound stops it. **Stop all** stops everything.
+- **Mixed with the active source.** Microphone + soundboard, or application audio + soundboard. The soundboard is
+  an extra layer. The rule that microphone and application audio are never transmitted together is unchanged, and
+  sounds keep playing when you switch modes.
+- **Drag & drop from Windows Explorer.** Drop one or more audio files, or a folder, onto the soundbar. It is
+  highlighted as a drop target, also when collapsed. If you have no soundboard yet, one is created automatically.
+  Unsupported, missing and duplicate files are skipped with a clear message, and the soundbar expands after a
+  successful import.
+- **Add sounds** button with the Windows file picker.
+- **Multiple soundboard collections** that you can create, rename, delete and switch between.
+- **Sound buttons** with a playing state and progress bar. The right-click menu offers play (overlap), stop,
+  rename, relink file, show in Explorer and remove.
+- **Missing-file handling.** Moved or deleted files are flagged with a warning, can be relinked, and never break
+  the soundboard.
+- **Independent soundboard volume** (0–200 %), smoothed and protected by the existing −1 dBFS limiter. The
+  *To VRChat* meter includes soundboard audio.
+- **Collapsible soundbar** with a short animation. The collapsed or expanded state is remembered.
+- **Supported formats:** WAV (VoxShift's own decoder), plus MP3, FLAC, M4A/AAC and WMA through Windows Media
+  Foundation.
+- Soundboard collections, sounds, volume, expanded state and the selected collection are saved in `settings.json`.
+
+### Local files
+- VoxShift stores the **absolute path** of each sound and plays the original file in place. It never copies,
+  moves, uploads or modifies imported files. Removing a sound or deleting a collection never deletes the audio file.
+
+### Changed
+- README: new Soundboard section with usage instructions and three new screenshots (expanded, collapsed,
+  drag & drop). The hero image now shows the soundboard.
+- Settings schema version 2. Settings from 0.0.1/0.0.2 load unchanged, with soundboard defaults.
+- The Windows smoke test now also imports, decodes, resamples and plays a real WAV file through the soundboard.
+- Release titles are taken from the release notes heading.
+
+### Tests
+- 40 new unit tests: library (collections, imports, duplicates, unsupported and missing files, relinking, Unicode
+  paths), settings round-trip and migration, mixer (simultaneous sounds, stop and stop all, volume, fades, voice
+  limit, cleanup), routing (microphone or application plus soundboard, mode switch while playing, limiter, meter),
+  WAV decoding, resampling, and an end-to-end file pipeline that verifies the original file is untouched.
+
 ## [0.0.2] - 2026-11-08
 
 Maintenance release: build and release pipeline updates. The application's features and behaviour are unchanged.
@@ -54,6 +99,7 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
 - New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
   portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
-[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/crapclap161/voxshift/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/crapclap161/voxshift/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/crapclap161/voxshift/releases/tag/v0.0.1

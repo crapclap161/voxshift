@@ -54,7 +54,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string? _notice;
     private bool _startMinimized;
 
-    public MainViewModel(AudioEngine engine, SettingsStore store, AppSettings settings, ILog log, Dispatcher dispatcher)
+    public MainViewModel(AudioEngine engine, SettingsStore store, AppSettings settings, ILog log, Dispatcher dispatcher, IDialogService dialogs)
     {
         _engine = engine;
         _store = store;
@@ -97,9 +97,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _store.Save(_settings);
         };
 
+        Soundboard = new SoundboardViewModel(settings, engine.Soundboard, dialogs, ScheduleSave, log);
+
         _engine.StatusChanged += s => _dispatcher.BeginInvoke(() => ApplyStatus(s));
         _engine.DevicesChanged += () => _dispatcher.BeginInvoke(async () => await LoadDevicesAsync());
     }
+
+    /// <summary>Soundboard section (collections, buttons, drag &amp; drop, volume).</summary>
+    public SoundboardViewModel Soundboard { get; }
 
     // ---- collections ----------------------------------------------------------------------------
 
@@ -313,6 +318,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ApplicationLevel = Decay(ApplicationLevel, VolumeMath.ToMeterPosition(router.Application.TakePeak()));
         OutputLevel = Decay(OutputLevel, VolumeMath.ToMeterPosition(router.TakeOutputPeak()));
         IsLimiting = router.IsLimiting;
+        Soundboard.UpdatePlayback();
     }
 
     /// <summary>Instant attack, ~1 s fall time from full scale.</summary>
@@ -395,6 +401,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void ApplyStatus(EngineStatus status)
     {
         Status = status;
+        Soundboard.OutputAvailable = status.OutputState == ComponentState.Running;
         OnModeOrStatusChanged();
     }
 

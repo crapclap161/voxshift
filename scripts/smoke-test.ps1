@@ -41,4 +41,5 @@ if ($text -notmatch '(?m)^OK\s*$') { throw 'Report does not start with OK.' }
 if ($text -notmatch "(?m)^Version: $([regex]::Escape($ExpectedVersion))\s*$") { throw "Report does not show version $ExpectedVersion." }
 if ($text -notmatch '(?m)^Window title: VoxShift') { throw 'Window title is not branded VoxShift.' }
 if ($text -notmatch 'Process loopback probe \(own process\): OK') { throw 'Process loopback capture probe failed.' }
+if ($text -notmatch 'Soundboard probe: OK') { throw 'Soundboard probe failed (import, decode, resample or mixer).' }
 Write-Host 'Smoke test passed.'

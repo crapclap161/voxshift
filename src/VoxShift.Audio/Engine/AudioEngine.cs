@@ -5,6 +5,7 @@ using VoxShift.Audio.Apps;
 using VoxShift.Audio.Capture;
 using VoxShift.Audio.Devices;
 using VoxShift.Audio.Output;
+using VoxShift.Audio.Soundboard;
 using VoxShift.Core.Audio;
 using VoxShift.Core.Devices;
 using VoxShift.Core.Logging;
@@ -60,6 +61,7 @@ public sealed class AudioEngine : IDisposable
     {
         _log = log;
         Router = new AudioRouter(48000, initialMode);
+        Soundboard = new SoundboardPlayer(Router, log);
         _status = _status with { Mode = initialMode, ProcessLoopbackSupported = ProcessLoopbackCapture.IsSupported };
         _thread = new Thread(ThreadMain) { IsBackground = true, Name = "Audio engine" };
         _thread.SetApartmentState(ApartmentState.MTA);
@@ -67,6 +69,12 @@ public sealed class AudioEngine : IDisposable
 
     /// <summary>The router; exposed for meters. Mode and gains are lock-free and may be set from any thread.</summary>
     public AudioRouter Router { get; }
+
+    /// <summary>Soundboard playback into the virtual microphone (thread-safe).</summary>
+    public SoundboardPlayer Soundboard { get; }
+
+    /// <summary>Sets the soundboard volume (0–200 %), independent of microphone and application volume.</summary>
+    public void SetSoundboardVolume(int percent) => Router.Soundboard.Volume = VolumeMath.PercentToGain(percent);
 
     /// <summary>Raised on the engine thread whenever <see cref="Status"/> changes.</summary>
     public event Action<EngineStatus>? StatusChanged;
@@ -586,6 +594,7 @@ public sealed class AudioEngine : IDisposable
         _disposed = true;
         _queue.CompleteAdding();
         if (_thread.IsAlive) _thread.Join(TimeSpan.FromSeconds(5));
+        Soundboard.Dispose();
         _queue.Dispose();
         _ready.Dispose();
     }

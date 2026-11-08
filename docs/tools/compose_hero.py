@@ -47,15 +47,31 @@ def framed(name, radius=28):
     return with_shadow(rounded(img, radius))
 
 
+def frame_raw(name, radius=28):
+    """docs/screenshots/raw/<name>.png (2x render) -> framed docs/screenshots/<name>.png at 1x."""
+    src = SHOTS / "raw" / f"{name}.png"
+    if not src.exists():
+        return None
+    f = with_shadow(rounded(Image.open(src), radius))
+    f = f.resize((f.width // 2, f.height // 2), Image.LANCZOS)
+    f.save(SHOTS / f"{name}.png", optimize=True)
+    return f
+
+
 def main():
-    mic = framed("main-microphone")
+    for name in ("soundboard-expanded", "soundboard-collapsed", "soundboard-drag-drop"):
+        frame_raw(name, 20 if name == "soundboard-drag-drop" else 28)
+
+    # Hero: application mode next to microphone mode with the soundboard open.
     app = framed("main-application")
+    sb_raw = SHOTS / "raw" / "soundboard-expanded.png"
+    mic = with_shadow(rounded(Image.open(sb_raw), 28)) if sb_raw.exists() else framed("main-microphone")
     gap = -30
-    w = mic.width + app.width + gap + 80
+    w = app.width + mic.width + gap + 80
     h = max(mic.height, app.height) + 80
     hero = gradient((w, h))
-    hero.alpha_composite(mic, (40, 40))
-    hero.alpha_composite(app, (40 + mic.width + gap, 40))
+    hero.alpha_composite(app, (40, 40))
+    hero.alpha_composite(mic, (40 + app.width + gap, 40))
     hero = hero.resize((w // 2, h // 2), Image.LANCZOS)  # 1x for the README, still sharp on hi-dpi screens
     hero.convert("RGB").save(SHOTS / "hero.png", optimize=True)
 

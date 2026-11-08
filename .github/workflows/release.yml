@@ -47,8 +47,12 @@ jobs:
           if ($tag -ne "v$v") { throw "Tag '$tag' does not match the project version 'v$v' in Directory.Build.props." }
           if (-not (Select-String -Path CHANGELOG.md -Pattern "^## \[$([regex]::Escape($v))\]" -Quiet)) { throw "CHANGELOG.md has no entry for $v." }
           if (-not (Test-Path "docs/release-notes/v$v.md")) { throw "Missing release notes docs/release-notes/v$v.md." }
+          # Release title = first heading of the release notes, e.g. "VoxShift v0.0.3 — Soundboard Feature Release".
+          $title = ((Get-Content "docs/release-notes/v$v.md" -Encoding utf8 -TotalCount 1) -replace '^#\s*', '').Trim()
+          if (-not $title.StartsWith("VoxShift v$v")) { $title = "VoxShift v$v" }
           "version=$v" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
+          "title=$title" >> $env:GITHUB_OUTPUT
           "SOURCE_DATE_EPOCH=$((git log -1 --format=%ct).Trim())" >> $env:GITHUB_ENV
 
       - name: Restore
@@ -78,8 +82,11 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: VoxShift ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.title }}
           body_path: docs/release-notes/${{ steps.version.outputs.tag }}.md
+          draft: false
+          prerelease: false
+          make_latest: true
           files: |
             dist/VoxShift-${{ steps.version.outputs.tag }}-win-x64-portable.exe
             dist/VoxShift-${{ steps.version.outputs.tag }}-win-x64.zip

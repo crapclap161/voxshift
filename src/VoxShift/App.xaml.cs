@@ -82,7 +82,7 @@ public partial class App : Application
             _engine = new AudioEngine(_log, settings.Mode);
             _engine.Start();
 
-            _vm = new MainViewModel(_engine, store, settings, _log, Dispatcher);
+            _vm = new MainViewModel(_engine, store, settings, _log, Dispatcher, new DialogService());
             _window = new MainWindow(_vm);
             _window.ExitRequested += OnExitRequested;
             MainWindow = _window;
@@ -124,7 +124,7 @@ public partial class App : Application
             var store = new SettingsStore(tempSettings, _log);
             var settings = new AppSettings { HotkeyEnabled = true, ToggleHotkey = "Ctrl+Alt+M", MinimizeToTray = true };
             _engine = new AudioEngine(_log!, settings.Mode);
-            _vm = new MainViewModel(_engine, store, settings, _log!, Dispatcher);
+            _vm = new MainViewModel(_engine, store, settings, _log!, Dispatcher, new DialogService());
             _window = new MainWindow(_vm);
             MainWindow = _window;
             await ScreenshotRenderer.RenderAsync(_window, _vm, Path.GetFullPath(directory));
@@ -169,6 +169,7 @@ public partial class App : Application
         sb.AppendLine(inv, $"Applications listed: {_vm.Applications.Count}");
         foreach (var a in _vm.Applications.Take(15)) sb.AppendLine(inv, $"  - {a.DisplayName} [{a.ExeName}] pid={a.ProcessId} {a.Detail}");
         sb.AppendLine("Process loopback probe (own process): " + await Task.Run(ProbeProcessLoopback));
+        sb.AppendLine("Soundboard probe: " + await ProbeSoundboardAsync());
         WriteSmokeReport(sb.ToString());
 
         _window.ExitApplication();
@@ -192,6 +193,78 @@ public partial class App : Application
         catch (Exception ex)
         {
             return $"FAILED: {ex.GetType().Name}: {ex.Message} (HRESULT 0x{ex.HResult:X8})";
+        }
+    }
+
+    /// <summary>
+    /// Writes a real WAV file, imports it through the soundboard view model (as a drop would), decodes, resamples
+    /// and starts it in the mixer, then stops it. Also reports whether Windows Media Foundation can decode.
+    /// </summary>
+    private async Task<string> ProbeSoundboardAsync()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "voxshift-smoke-sounds " + Guid.NewGuid().ToString("N")[..6]);
+        try
+        {
+            Directory.CreateDirectory(dir);
+            string wav = Path.Combine(dir, "Smoke tëst #1.wav");
+            WriteTestWav(wav, 44100, 0.4);
+
+            _vm!.Soundboard.ImportFiles([wav, Path.Combine(dir, "notes.txt")]);
+            var sound = _vm.Soundboard.Sounds.FirstOrDefault(s => s.FilePath == wav);
+            if (sound is null) return "FAILED: import did not add the file";
+
+            var result = await _engine!.Soundboard.PlayAsync(sound.Id, wav);
+            bool started = result.Status == VoxShift.Audio.Soundboard.PlayStatus.Started && _engine.Router.Soundboard.IsPlaying(sound.Id);
+            _engine.Soundboard.StopAll();
+            _engine.Router.Soundboard.Clear();
+
+            string mf;
+            try
+            {
+                var clip = await Task.Run(() => VoxShift.Audio.Soundboard.AudioFileDecoder.DecodeWithMediaFoundation(wav));
+                mf = $"Media Foundation OK ({clip.SampleRate} Hz, {clip.Frames} frames)";
+            }
+            catch (Exception ex)
+            {
+                mf = "Media Foundation unavailable: " + ex.Message;
+            }
+
+            bool fileUntouched = File.Exists(wav) && new FileInfo(wav).Length == 44 + (int)(44100 * 0.4) * 4;
+            return started && fileUntouched
+                ? $"OK (imported, decoded, resampled to {_engine.Router.OutputRate} Hz, played; original file untouched; {mf})"
+                : $"FAILED (status {result.Status}: {result.Message}; started={started}; untouched={fileUntouched}; {mf})";
+        }
+        catch (Exception ex)
+        {
+            return "FAILED: " + ex.GetType().Name + ": " + ex.Message;
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
+    }
+
+    private static void WriteTestWav(string path, int rate, double seconds)
+    {
+        int frames = (int)(rate * seconds);
+        using var w = new BinaryWriter(File.Create(path));
+        w.Write("RIFF"u8);
+        w.Write(36 + frames * 4);
+        w.Write("WAVEfmt "u8);
+        w.Write(16);
+        w.Write((short)1);
+        w.Write((short)2);
+        w.Write(rate);
+        w.Write(rate * 4);
+        w.Write((short)4);
+        w.Write((short)16);
+        w.Write("data"u8);
+        w.Write(frames * 4);
+        for (int i = 0; i < frames; i++)
+        {
+            short v = (short)(Math.Sin(2 * Math.PI * 440 * i / rate) * 8000);
+            w.Write(v);
+            w.Write(v);
         }
     }
 

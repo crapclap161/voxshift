@@ -70,7 +70,7 @@ On Windows, the smoke test runs the real executable:
 
 ```powershell
 dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
-./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion 0.0.2
+./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion 0.0.3
 ```
 
 ## Pull requests

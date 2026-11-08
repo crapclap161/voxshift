@@ -72,10 +72,25 @@ internal static class ScreenshotRenderer
             ApplicationProcessId = 14872,
         };
 
+        // Demo soundboard (screenshot mode only: it lives in a temporary settings object and is never saved
+        // to a real user library).
+        var boards = new[] { new SoundboardItem("demo-1", "Stream"), new SoundboardItem("demo-2", "Memes") };
+        var idle = new (string Name, double Progress, bool Missing)[]
+        {
+            ("Airhorn", -1, false), ("Applause", -1, false), ("Bruh", -1, false),
+            ("Laugh", -1, false), ("Notification", -1, false), ("Victory", -1, false),
+        };
+        var playing = new (string Name, double Progress, bool Missing)[]
+        {
+            ("Airhorn", 0.62, false), ("Applause", -1, false), ("Bruh", -1, false),
+            ("Laugh", 0.28, false), ("Notification", -1, false), ("Victory", -1, false),
+        };
+
         vm.MicrophoneVolume = 100;
         vm.ApplicationVolume = 60;
         vm.Mode = AudioSource.Microphone;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.78, 0.66, 0.77);
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
         await Settle(400);
 
         // 1) Application picker (needs the real window for its popup)
@@ -114,6 +129,7 @@ internal static class ScreenshotRenderer
         vm.ApplicationVolume = 60;
         vm.Mode = AudioSource.Microphone;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.78, 0.66, 0.77);
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
         Layout(host);
         await Settle(600);
         Layout(host);
@@ -122,10 +138,43 @@ internal static class ScreenshotRenderer
         // Application mode
         vm.Mode = AudioSource.Application;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.31, 0.83, 0.82);
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
         Layout(host);
         await Settle(600);
         Layout(host);
         Save(host, Path.Combine(directory, "main-application.png"));
+
+        // Soundboard screenshots (framed afterwards by docs/tools/compose_hero.py from the raw/ folder).
+        string raw = Path.Combine(directory, "raw");
+        Directory.CreateDirectory(raw);
+        vm.Mode = AudioSource.Microphone;
+        vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.86);
+
+        // Collapsed soundbar: only the header remains.
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
+        Layout(host);
+        await Settle(700);
+        Layout(host);
+        Save(host, Path.Combine(raw, "soundboard-collapsed.png"));
+
+        // Expanded soundboard with two sounds playing (microphone + soundboard mixed).
+        vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
+        Layout(host);
+        await Settle(800);
+        Layout(host);
+        Save(host, Path.Combine(raw, "soundboard-expanded.png"));
+
+        // Drag & drop target state, exactly as shown while files are dragged over the soundbar.
+        if (window.FindName("SoundboardCard") is FrameworkElement card)
+        {
+            vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: true, dropHint: "Drop to add sounds (3 items)");
+            Layout(host);
+            await Settle(600);
+            Layout(host);
+            Save(card, Path.Combine(raw, "soundboard-drag-drop.png"), useDescendantBounds: true);
+        }
+
+        vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
 
         // 3) Setup help
         var help = new SetupHelpWindow { Owner = window, WindowStartupLocation = WindowStartupLocation.Manual, Left = 600, Top = 20 };

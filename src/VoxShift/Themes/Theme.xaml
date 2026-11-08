@@ -9,6 +9,8 @@
     <Color x:Key="MicAccentColor2">#FF2F6BEA</Color>
     <Color x:Key="AppAccentColor">#FFA65CFF</Color>
     <Color x:Key="AppAccentColor2">#FF7B3FE4</Color>
+    <Color x:Key="SoundAccentColor">#FF22C1A8</Color>
+    <Color x:Key="SoundAccentColor2">#FF128C7E</Color>
 
     <SolidColorBrush x:Key="WindowBackgroundBrush" Color="{StaticResource WindowBackgroundColor}" />
     <SolidColorBrush x:Key="CardBrush" Color="{StaticResource CardColor}" />
@@ -18,6 +20,7 @@
     <SolidColorBrush x:Key="MutedTextBrush" Color="#FF6B7280" />
     <SolidColorBrush x:Key="MicAccentBrush" Color="{StaticResource MicAccentColor}" />
     <SolidColorBrush x:Key="AppAccentBrush" Color="{StaticResource AppAccentColor}" />
+    <SolidColorBrush x:Key="SoundAccentBrush" Color="{StaticResource SoundAccentColor}" />
     <SolidColorBrush x:Key="OkBrush" Color="#FF2ECC71" />
     <SolidColorBrush x:Key="WaitBrush" Color="#FFF5B942" />
     <SolidColorBrush x:Key="ErrorBrush" Color="#FFFF5C5C" />
@@ -30,6 +33,11 @@
     <LinearGradientBrush x:Key="AppActiveBrush" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="{StaticResource AppAccentColor}" Offset="0" />
         <GradientStop Color="{StaticResource AppAccentColor2}" Offset="1" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="SoundActiveBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="{StaticResource SoundAccentColor}" Offset="0" />
+        <GradientStop Color="{StaticResource SoundAccentColor2}" Offset="1" />
     </LinearGradientBrush>
 
     <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
@@ -169,6 +177,89 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
                         </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Soundboard tile (DataContext = SoundButtonViewModel) -->
+    <Style x:Key="SoundTile" TargetType="Button">
+        <Setter Property="Foreground" Value="{StaticResource PrimaryTextBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <ScaleTransform ScaleX="1" ScaleY="1" />
+                        </Grid.RenderTransform>
+                        <Border x:Name="Bd" CornerRadius="10" Background="#FF262A33" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" />
+                        <Border x:Name="Active" CornerRadius="10" Background="{StaticResource SoundActiveBrush}" Opacity="0">
+                            <Border.Effect>
+                                <DropShadowEffect Color="{StaticResource SoundAccentColor}" BlurRadius="16" ShadowDepth="0" Opacity="0.45" />
+                            </Border.Effect>
+                        </Border>
+                        <Border x:Name="Focus" CornerRadius="10" BorderThickness="2" BorderBrush="#80FFFFFF" Visibility="Collapsed" />
+                        <Grid x:Name="ProgressHost" VerticalAlignment="Bottom" Height="3" Margin="10,0,10,6" Visibility="Collapsed">
+                            <Border Background="#40FFFFFF" CornerRadius="1.5" />
+                            <Border Background="White" CornerRadius="1.5" RenderTransformOrigin="0,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="{Binding Progress}" />
+                                </Border.RenderTransform>
+                            </Border>
+                        </Grid>
+                        <DockPanel Margin="10,6,10,8">
+                            <TextBlock x:Name="Glyph" DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE768;" FontSize="13"
+                                       Margin="0,0,8,0" Foreground="{StaticResource SoundAccentBrush}" />
+                            <TextBlock x:Name="Label" Text="{Binding Name}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="34"
+                                       VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12.5" LineHeight="16" />
+                        </DockPanel>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#FF3B4252" />
+                            <Setter TargetName="Bd" Property="Background" Value="#FF2C313B" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.96" ScaleY="0.96" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                            <Setter TargetName="Glyph" Property="Text" Value="&#xE895;" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                            <Setter TargetName="Glyph" Property="Text" Value="&#xE71A;" />
+                            <Setter TargetName="Glyph" Property="Foreground" Value="White" />
+                            <Setter TargetName="ProgressHost" Property="Visibility" Value="Visible" />
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Active" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                            <DataTrigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Active" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.25" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.ExitActions>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                            <Setter TargetName="Glyph" Property="Text" Value="&#xE7BA;" />
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{StaticResource WaitBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#99F5B942" />
+                            <Setter TargetName="Label" Property="Opacity" Value="0.7" />
+                        </DataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>

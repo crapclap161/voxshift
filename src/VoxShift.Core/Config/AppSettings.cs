@@ -1,12 +1,13 @@
 using System.Text.Json.Serialization;
 using VoxShift.Core.Audio;
+using VoxShift.Core.Soundboard;
 
 namespace VoxShift.Core.Config;
 
 /// <summary>Everything that is remembered between application runs.</summary>
 public sealed class AppSettings
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2; // 2: soundboard (v0.0.3); older files load with defaults
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
@@ -44,6 +45,15 @@ public sealed class AppSettings
     /// <summary>Global hotkey that toggles between the two modes, e.g. "Ctrl+Alt+M".</summary>
     public string ToggleHotkey { get; set; } = "Ctrl+Alt+M";
 
+    /// <summary>Soundboard collections. Only file references (absolute paths) are stored, never audio data.</summary>
+    public List<SoundboardSet> Soundboards { get; set; } = new();
+
+    public string SelectedSoundboardId { get; set; } = string.Empty;
+
+    public int SoundboardVolumePercent { get; set; } = 80;
+
+    public bool SoundboardExpanded { get; set; } = true;
+
     public double? WindowLeft { get; set; }
 
     public double? WindowTop { get; set; }
@@ -61,6 +71,9 @@ public sealed class AppSettings
         MicrophoneVolumePercent = VolumeMath.ClampPercent(MicrophoneVolumePercent);
         ApplicationVolumePercent = VolumeMath.ClampPercent(ApplicationVolumePercent);
         if (!Enum.IsDefined(Mode)) Mode = AudioSource.Microphone;
+        SoundboardVolumePercent = VolumeMath.ClampPercent(SoundboardVolumePercent);
+        SelectedSoundboardId ??= string.Empty;
+        NormalizeSoundboards();
         if (WindowLeft is { } l && (double.IsNaN(l) || double.IsInfinity(l))) WindowLeft = null;
         if (WindowTop is { } t && (double.IsNaN(t) || double.IsInfinity(t))) WindowTop = null;
         SchemaVersion = CurrentSchemaVersion;
@@ -68,4 +81,39 @@ public sealed class AppSettings
     }
 
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
+
+    private void NormalizeSoundboards()
+    {
+        Soundboards ??= new();
+        Soundboards.RemoveAll(c => c is null);
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var collection in Soundboards)
+        {
+            if (string.IsNullOrWhiteSpace(collection.Id) || !ids.Add(collection.Id))
+            {
+                collection.Id = Guid.NewGuid().ToString("N");
+                ids.Add(collection.Id);
+            }
+
+            collection.Name = string.IsNullOrWhiteSpace(collection.Name) ? "Soundboard" : collection.Name.Trim();
+            collection.Sounds ??= new();
+            collection.Sounds.RemoveAll(s => s is null || string.IsNullOrWhiteSpace(s.FilePath));
+            var soundIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var sound in collection.Sounds)
+            {
+                if (string.IsNullOrWhiteSpace(sound.Id) || !soundIds.Add(sound.Id))
+                {
+                    sound.Id = Guid.NewGuid().ToString("N");
+                    soundIds.Add(sound.Id);
+                }
+
+                if (string.IsNullOrWhiteSpace(sound.Name)) sound.Name = SoundboardLibrary.DisplayNameFor(sound.FilePath);
+            }
+        }
+
+        if (Soundboards.Count > 0 && !Soundboards.Any(c => c.Id == SelectedSoundboardId))
+        {
+            SelectedSoundboardId = Soundboards[0].Id;
+        }
+    }
 }
