@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Platform independent logic: DSP (resampling, gain, limiting, switching), routing state,
+    settings persistence, logging and process-tree grouping. Contains no Windows API calls so
+    it can be unit tested on any OS.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>VoxShift.Core</RootNamespace>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="VoxShift.Core.Tests" />
+  </ItemGroup>
+</Project>

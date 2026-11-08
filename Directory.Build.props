@@ -1,0 +1,29 @@
+<Project>
+  <!-- Shared settings for every project in the repository. -->
+  <PropertyGroup>
+    <!-- Single source of truth for the product version (SemVer). Release tags must be "v$(VersionPrefix)". -->
+    <VersionPrefix>0.0.1</VersionPrefix>
+    <Product>VoxShift</Product>
+    <Authors>VoxShift contributors</Authors>
+    <Company>VoxShift</Company>
+    <Copyright>Copyright (c) 2026 crapclap161</Copyright>
+    <RepositoryUrl>https://github.com/crapclap161/voxshift</RepositoryUrl>
+    <NeutralLanguage>en</NeutralLanguage>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+
+    <!-- Lets the Windows-only projects be compiled (not run) on Linux/macOS as well. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- Reproducible builds: deterministic compiler output and CI path mapping. All package versions are
+         pinned exactly in the project files and the SDK feature band is pinned in global.json. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <!-- CI builds must be warning-free (code analysis level: latest-recommended). -->
+    <TreatWarningsAsErrors Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</TreatWarningsAsErrors>
+    <DebugType Condition="'$(Configuration)' == 'Release'">embedded</DebugType>
+  </PropertyGroup>
+</Project>

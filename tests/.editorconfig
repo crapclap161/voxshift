@@ -1,0 +1,4 @@
+# Test code conventions: descriptive Method_Condition_Result names and inline expected arrays are fine here.
+[*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1861.severity = none

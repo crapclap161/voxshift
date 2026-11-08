@@ -1,0 +1,36 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: VoxShift version
+      placeholder: "0.0.1"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version / build
+      placeholder: "Windows 11 24H2 (26100)"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Steps to reproduce, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Audio setup
+      description: Microphone, virtual cable (VB-CABLE?), captured application, VRChat microphone setting.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log excerpt
+      description: Relevant lines from %LOCALAPPDATA%\VoxShift\logs\VoxShift.log (use "Open log folder" in the app).
+      render: text

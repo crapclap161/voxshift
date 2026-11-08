@@ -1,0 +1,39 @@
+# .NET build output
+bin/
+obj/
+publish/
+artifacts/
+dist/
+out/
+TestResults/
+*.trx
+coverage*/
+*.binlog
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.swp
+
+# Local configuration and secrets (VoxShift needs none, but never commit them)
+.env
+.env.*
+*.pfx
+*.snk
+appsettings.*.local.json
+
+# Python tooling cache (docs/tools)
+__pycache__/
+*.pyc
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Archives
+*.zip

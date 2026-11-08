@@ -1,0 +1,75 @@
+name: Release
+
+# Publishes a GitHub Release when a version tag is pushed, e.g.:
+#   git tag -a v0.0.1 -m "VoxShift v0.0.1" && git push origin v0.0.1
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the release and upload assets (GITHUB_TOKEN only, no extra secrets)
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  release:
+    name: Build & publish ${{ github.ref_name }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.1xx"
+
+      - name: Verify tag matches project version
+        id: version
+        shell: pwsh
+        run: |
+          $v = (dotnet msbuild Directory.Build.props -getProperty:VersionPrefix).Trim()
+          $tag = "${{ github.ref_name }}"
+          if ($tag -ne "v$v") { throw "Tag '$tag' does not match the project version 'v$v' in Directory.Build.props." }
+          if (-not (Select-String -Path CHANGELOG.md -Pattern "^## \[$([regex]::Escape($v))\]" -Quiet)) { throw "CHANGELOG.md has no entry for $v." }
+          if (-not (Test-Path "docs/release-notes/v$v.md")) { throw "Missing release notes docs/release-notes/v$v.md." }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "SOURCE_DATE_EPOCH=$((git log -1 --format=%ct).Trim())" >> $env:GITHUB_ENV
+
+      - name: Restore
+        run: dotnet restore VoxShift.sln
+
+      - name: Check formatting
+        run: dotnet format VoxShift.sln --verify-no-changes --no-restore
+
+      - name: Build & test
+        run: |
+          dotnet build VoxShift.sln -c Release --no-restore
+          dotnet test tests/VoxShift.Core.Tests -c Release --no-build
+
+      - name: Publish (self-contained, single file)
+        run: dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
+
+      - name: Smoke test
+        shell: pwsh
+        run: ./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion ${{ steps.version.outputs.version }}
+
+      - name: Package
+        shell: pwsh
+        run: ./scripts/package.ps1 -Version ${{ steps.version.outputs.version }} -PublishDir publish -OutputDir dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: VoxShift ${{ github.ref_name }}
+          body_path: docs/release-notes/${{ github.ref_name }}.md
+          files: |
+            dist/VoxShift-${{ github.ref_name }}-win-x64.zip
+            dist/SHA256SUMS.txt
+          fail_on_unmatched_files: true
