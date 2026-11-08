@@ -2,21 +2,25 @@ name: Screenshots
 
 # Renders the real WPF UI (with sample devices – build machines have no microphone or virtual cable)
 # to docs/screenshots/*.png and commits the result to the branch the workflow was started on.
+#
+# Run it manually ("Run workflow") on the release branch BEFORE tagging a release. It deliberately has no push
+# trigger: an automatic run after a release commit used to push an extra "update screenshots" commit after the tag
+# had been created, so the tagged release would not contain the final screenshots. The release workflow now checks
+# that every screenshot the README embeds is present in the tagged commit.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "src/VoxShift/Views/**"
-      - "src/VoxShift/Themes/**"
-      - "src/VoxShift/Services/ScreenshotRenderer.cs"
-      - "Directory.Build.props" # the version is shown in the UI
+
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
   screenshots:
+    # Never on a tag: tags are immutable release points and must not receive commits.
+    if: github.ref_type == 'branch'
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7

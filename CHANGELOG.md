@@ -6,6 +6,59 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-11-08
+
+**VR Control & Smart Audio Update.** A redesigned, VR-friendly interface, a soundboard that docks to the window,
+optional voice-over-music mixing and automatic microphone muting while sounds play.
+
+### Added
+- **Auto-mute microphone during Soundboard playback** (on by default). Starting a sound mutes only the microphone's
+  contribution inside VoxShift's mix (8 ms fade); it returns automatically (30 ms fade) once the *last* sound has
+  really finished, as reported by the mixer, not by a timer. Overlapping sounds, Stop all, stopping single sounds,
+  failed playback and device loss are all handled, a 100 ms hold bridges quick re-triggers, and the decision is
+  recalculated from the current settings every 10 ms, so a stale state can never be restored. The Windows microphone
+  and other applications are never touched, and headphone monitoring keeps playing.
+- **Talk over music** (off by default). In application mode VRChat hears the application *and* your microphone,
+  each with its own volume, through the existing −1 dBFS limiter. Off keeps the classic switch with no microphone
+  leakage. Auto-mute takes precedence while sounds play: only the voice pauses, the music continues.
+- **Dockable soundboard.** The soundboard is now a separate window attached to the right edge of the main window. It
+  follows moves and resizes (physical-pixel placement against the visible frame, correct at any DPI and on any
+  monitor), nudges the main window left when there is no room, never opens off-screen, minimizes/restores/hides with
+  the main window, follows *Always on top*, can be resized, and collapses into a slim strip with a large expand
+  handle. Drag & drop works on the dock and on the collapsed strip. Closing it only hides it.
+- **VR Controller Mode.** An optional simplified window with very large controls for VR desktop overlays: status tiles
+  (transmitting, microphone live/muted, talk over music, auto-mute, VRChat output, sounds playing), huge
+  MICROPHONE / APPLICATION AUDIO buttons, TALK OVER MUSIC and AUTO-MUTE MIC ON SOUNDS switches, collection chips, a
+  scrollable grid of large sound buttons with page buttons, STOP ALL and BACK TO FULL INTERFACE. It shares the one
+  view model and audio engine with the full interface, so switching never interrupts or duplicates audio. The tray
+  icon always offers *Show full interface*, and the window's X returns to it as well.
+- **Edit mode** on the soundboard: rename, relink and remove sounds without right-clicking.
+- Tray menu entries for Talk over music, Auto-mute, VR Controller Mode and *Show full interface*.
+- Shortcuts: Ctrl+T (talk over music), Ctrl+B (show/hide soundboard), Esc (leave VR Controller Mode).
+- Settings schema 4: `AutoMuteMicrophoneDuringSoundboard`, `TalkOverMusicEnabled`, `VrControllerModeEnabled`,
+  `SoundboardDockVisible`, `SoundboardDockExpanded`, `SoundboardDockWidth`, VR window geometry and the main window
+  height. v0.0.4 (and older) settings migrate automatically; soundboard collections, file references, devices,
+  volumes, hotkeys, monitoring and window settings are kept.
+- 52 new unit tests: the complete behaviour matrix, auto-mute timing, overlapping sounds, Stop all, single stops,
+  interrupted playback, quick re-triggers, click-free fades, settings changes during playback, mode switches during
+  playback, leakage checks in both directions, independent volumes, limiter and meter with all three sources, device
+  disconnects, headphone monitoring isolation, settings migration and dock placement (DPI, multi-monitor, narrow
+  screens). The Windows smoke test now also checks smart mixing, the dock and VR Controller Mode.
+
+### Changed
+- **Redesigned interface.** Status card with large chips that show the *effective* state, bigger mode buttons,
+  an *Audio mixing* card, large ON/OFF option switches, large sliders (click anywhere to jump), 48 px combo boxes and
+  buttons, and clear hover/pressed/focus/disabled states throughout. The soundboard no longer takes space inside the
+  main window.
+- `AudioRouter` now uses one transmit gate per source driven by the new `MixPolicy`. With Talk over music off the
+  gates still close before they open, so microphone and application are never mixed (unchanged guarantee).
+- The screenshots workflow runs only on demand (and never on tags), and the release workflow verifies that every
+  screenshot the README embeds is part of the tagged commit. This prevents screenshot commits landing after a tag.
+- README rewritten for v0.0.5 with new screenshots of the real UI.
+
+### Removed
+- The embedded soundbar in the main window (replaced by the dock) and its old screenshots.
+
 ## [0.0.4] - 2026-11-08
 
 ### Fixed
@@ -123,7 +176,8 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
 - New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
   portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
-[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.5...HEAD
+[0.0.5]: https://github.com/crapclap161/voxshift/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/crapclap161/voxshift/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/crapclap161/voxshift/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/crapclap161/voxshift/compare/v0.0.1...v0.0.2

@@ -2,7 +2,7 @@
   <!-- Shared settings for every project in the repository. -->
   <PropertyGroup>
     <!-- Single source of truth for the product version (SemVer). Release tags must be "v$(VersionPrefix)". -->
-    <VersionPrefix>0.0.4</VersionPrefix>
+    <VersionPrefix>0.0.5</VersionPrefix>
     <Product>VoxShift</Product>
     <Authors>VoxShift contributors</Authors>
     <Company>VoxShift</Company>

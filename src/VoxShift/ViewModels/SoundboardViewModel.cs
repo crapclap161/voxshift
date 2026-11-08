@@ -41,6 +41,9 @@ public sealed class SoundboardViewModel : ObservableObject
     private string? _message;
     private bool _messageIsError;
     private bool _anyPlaying;
+    private int _playingCount;
+    private bool _isEditMode;
+    private int _gridColumns = 3;
     private bool _outputAvailable = true;
     private bool _monitorAvailable;
     private bool _monitorEnabled;
@@ -73,11 +76,14 @@ public sealed class SoundboardViewModel : ObservableObject
         _dialogs = dialogs;
         _save = save;
         _log = log;
-        _isExpanded = settings.SoundboardExpanded;
+        _isExpanded = settings.SoundboardDockExpanded;
         _volume = settings.SoundboardVolumePercent;
         _player.Mixer.Volume = VolumeMath.PercentToGain(_volume);
 
         ToggleExpandedCommand = new RelayCommand(() => IsExpanded = !IsExpanded);
+        ExpandCommand = new RelayCommand(() => IsExpanded = true);
+        CollapseCommand = new RelayCommand(() => IsExpanded = false);
+        ToggleEditModeCommand = new RelayCommand(() => IsEditMode = !IsEditMode);
         AddFilesCommand = new RelayCommand(AddFiles);
         NewBoardCommand = new RelayCommand(NewBoard);
         RenameBoardCommand = new RelayCommand(RenameBoard, () => _selectedBoard is not null);
@@ -93,6 +99,13 @@ public sealed class SoundboardViewModel : ObservableObject
     public ObservableCollection<SoundButtonViewModel> Sounds { get; } = new();
 
     public ICommand ToggleExpandedCommand { get; }
+
+    public ICommand ExpandCommand { get; }
+
+    public ICommand CollapseCommand { get; }
+
+    /// <summary>Edit mode: clicking a sound opens its actions (rename, relink, remove) instead of playing it.</summary>
+    public ICommand ToggleEditModeCommand { get; }
 
     public ICommand AddFilesCommand { get; }
 
@@ -126,6 +139,7 @@ public sealed class SoundboardViewModel : ObservableObject
         set
         {
             if (!Set(ref _isExpanded, value)) return;
+            _settings.SoundboardDockExpanded = value;
             _settings.SoundboardExpanded = value;
             _save();
         }
@@ -224,6 +238,29 @@ public sealed class SoundboardViewModel : ObservableObject
         private set => Set(ref _anyPlaying, value);
     }
 
+    /// <summary>Number of different sounds playing right now.</summary>
+    public int PlayingCount
+    {
+        get => _playingCount;
+        private set => Set(ref _playingCount, value);
+    }
+
+    /// <summary>
+    /// Edit mode (no right-click needed, e.g. with VR controllers): clicking a sound shows its actions menu.
+    /// </summary>
+    public bool IsEditMode
+    {
+        get => _isEditMode;
+        set => Set(ref _isEditMode, value);
+    }
+
+    /// <summary>Columns of the large sound grid in VR Controller Mode (set by the window from its width).</summary>
+    public int GridColumns
+    {
+        get => _gridColumns;
+        set => Set(ref _gridColumns, Math.Clamp(value, 1, 8));
+    }
+
     public bool HasBoards => Boards.Count > 0;
 
     public bool IsEmpty => Sounds.Count == 0;
@@ -284,6 +321,7 @@ public sealed class SoundboardViewModel : ObservableObject
     {
         _player.Mixer.CopyProgress(_progress);
         bool any = false;
+        int count = 0;
         foreach (var sound in Sounds)
         {
             double progress = -1;
@@ -295,9 +333,11 @@ public sealed class SoundboardViewModel : ObservableObject
             sound.IsPlaying = progress >= 0;
             sound.Progress = Math.Max(0, progress);
             any |= sound.IsPlaying;
+            if (sound.IsPlaying) count++;
         }
 
         AnyPlaying = any;
+        PlayingCount = count;
 
         if (--_missingCheckCountdown <= 0)
         {
@@ -322,7 +362,7 @@ public sealed class SoundboardViewModel : ObservableObject
         if (!File.Exists(sound.FilePath))
         {
             sound.IsMissing = true;
-            ShowMessage($"\"{sound.Name}\" can't be found at its original location. Right-click it and choose Relink file…", error: true);
+            ShowMessage($"\"{sound.Name}\" can't be found at its original location. Use Edit (or right-click it) and choose Relink file…", error: true);
             return;
         }
 
@@ -341,7 +381,7 @@ public sealed class SoundboardViewModel : ObservableObject
             {
                 case PlayStatus.Missing:
                     sound.IsMissing = true;
-                    ShowMessage($"\"{sound.Name}\" can't be found. Right-click it and choose Relink file…", error: true);
+                    ShowMessage($"\"{sound.Name}\" can't be found. Use Edit (or right-click it) and choose Relink file…", error: true);
                     break;
                 case PlayStatus.Failed:
                     ShowMessage(result.Message ?? "Playback failed.", error: true);
@@ -535,6 +575,7 @@ public sealed class SoundboardViewModel : ObservableObject
         _isExpanded = expanded;
         OnPropertyChanged(nameof(IsExpanded));
         AnyPlaying = sounds.Any(s => s.Progress >= 0);
+        PlayingCount = sounds.Count(s => s.Progress >= 0);
         IsDragOver = dragOver;
         DropHint = dropHint;
         MonitorAvailable = true;
@@ -620,7 +661,7 @@ public sealed class SoundButtonViewModel : ObservableObject
 
     public string ToolTip => IsMissing
         ? $"File not found: {FilePath}\nRight-click → Relink file…"
-        : $"{FilePath}\nClick to play · click again to stop · right-click for more";
+        : $"{FilePath}\nClick to play · click again to stop · Edit or right-click for more";
 
     public ICommand PlayCommand { get; }
 

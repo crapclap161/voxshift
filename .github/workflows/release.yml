@@ -55,6 +55,17 @@ jobs:
           "title=$title" >> $env:GITHUB_OUTPUT
           "SOURCE_DATE_EPOCH=$((git log -1 --format=%ct).Trim())" >> $env:GITHUB_ENV
 
+      - name: Verify documentation screenshots are in the tagged commit
+        shell: pwsh
+        run: |
+          # Every image the README embeds must exist (screenshots are committed before tagging).
+          $missing = @()
+          foreach ($m in [regex]::Matches((Get-Content README.md -Raw -Encoding utf8), '(docs/screenshots/[^"''()\s]+\.png)')) {
+            if (-not (Test-Path $m.Groups[1].Value)) { $missing += $m.Groups[1].Value }
+          }
+          if ($missing.Count -gt 0) { throw "README references missing screenshots: $($missing -join ', ')" }
+          Write-Host "All README screenshots present."
+
       - name: Restore
         run: dotnet restore VoxShift.sln
 

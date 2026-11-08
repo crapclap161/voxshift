@@ -19,7 +19,7 @@ public sealed class SoundboardSettingsTests : IDisposable
         var settings = new AppSettings
         {
             SoundboardVolumePercent = 135,
-            SoundboardExpanded = false,
+            SoundboardDockExpanded = false,
             Soundboards =
             [
                 new SoundboardSet { Name = "Memes", Sounds = [new SoundEntry { Name = "Bruh", FilePath = @"D:\Sound FX\bruh ♪.mp3" }] },
@@ -32,7 +32,8 @@ public sealed class SoundboardSettingsTests : IDisposable
         var loaded = new SettingsStore(_dir).Load();
 
         Assert.Equal(135, loaded.SoundboardVolumePercent);
-        Assert.False(loaded.SoundboardExpanded);
+        Assert.False(loaded.SoundboardDockExpanded);
+        Assert.False(loaded.SoundboardExpanded); // legacy mirror for a downgrade to v0.0.4
         Assert.Equal(["Memes", "Stream"], loaded.Soundboards.Select(s => s.Name));
         Assert.Equal(settings.Soundboards[1].Id, loaded.SelectedSoundboardId);
         var sound = Assert.Single(loaded.Soundboards[0].Sounds);

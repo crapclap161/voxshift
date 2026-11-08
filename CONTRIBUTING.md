@@ -30,9 +30,9 @@ VB-CABLE.
 
 | Project | Responsibility | Platform |
 |---|---|---|
-| `src/VoxShift.Core` | DSP (router, resampler, limiter), settings, logging, process grouping, hotkey parsing | any (unit tested) |
+| `src/VoxShift.Core` | DSP (router, mix policy, resampler, limiter), dock geometry, settings, logging, process grouping, hotkey parsing | any (unit tested) |
 | `src/VoxShift.Audio` | WASAPI capture/render, process-loopback COM interop, device monitoring, `AudioEngine` | Windows |
-| `src/VoxShift` | WPF UI, view model, tray icon, global hotkey | Windows |
+| `src/VoxShift` | WPF UI: main window, soundboard dock window + controller, VR Controller window, view models, tray icon, global hotkey | Windows |
 | `tests/VoxShift.Core.Tests` | xUnit tests for `VoxShift.Core` | any |
 
 Put platform-independent logic in `VoxShift.Core` and cover it with tests. Keep COM and Win32 interop inside
@@ -59,8 +59,9 @@ dotnet test tests/VoxShift.Core.Tests
 - **Formatting** follows `.editorconfig`. Run `dotnet format VoxShift.sln` before committing.
 - **Audio thread safety.** Never allocate, block or log on the render/capture hot path. Device/COM work belongs on
   the engine thread.
-- **Never mix sources.** The router guarantees exactly one transmitted source. Changes in `AudioRouter`/`SourceChannel`
-  need tests proving this still holds.
+- **Deterministic mixing.** Which sources are transmitted is decided only by `MixPolicy` (mode, talk over music,
+  soundboard auto-mute, real playback state). With talk over music off, microphone and application audio are never
+  mixed. Changes in `AudioRouter`/`MixPolicy`/`SourceChannel` need tests proving the behaviour matrix still holds.
 - **No telemetry, no network calls,** and no new dependencies without a clear need (explain them in the PR).
 - **User-facing text** should be short, specific and actionable (say what happened and what to do).
 - If you change the UI, run the *Screenshots* workflow (or `VoxShift.exe --render-screenshots docs/screenshots`
@@ -70,7 +71,7 @@ On Windows, the smoke test runs the real executable:
 
 ```powershell
 dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
-./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion 0.0.4
+./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion 0.0.5
 ```
 
 ## Pull requests
@@ -88,7 +89,9 @@ dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
 1. Move the **[Unreleased]** entries in `CHANGELOG.md` to a new version section.
 2. Set `<VersionPrefix>` in `Directory.Build.props` to the new version.
 3. Add `docs/release-notes/vX.Y.Z.md`.
-4. Merge to `main`, then tag and push:
+4. Run the **Screenshots** workflow on the release branch and wait until it has committed (it has no automatic
+   trigger, so nothing is pushed after the tag).
+5. Merge to `main`, then tag and push:
 
    ```bash
    git tag -a vX.Y.Z -m "VoxShift vX.Y.Z"
@@ -101,7 +104,8 @@ dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
 Alternatively, start the **Release** workflow manually in the Actions tab and enter the tag (e.g. `vX.Y.Z`).
 It creates the tag on the selected commit together with the release.
 
-The release workflow refuses to publish if the tag, `VersionPrefix`, changelog entry or release notes don't match.
+The release workflow refuses to publish if the tag, `VersionPrefix`, changelog entry or release notes don't match, or
+if a screenshot the README embeds is missing from the tagged commit.
 
 ## Reporting bugs and security issues
 

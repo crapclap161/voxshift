@@ -78,6 +78,7 @@ public partial class App : Application
             }
 
             var settings = store.Load();
+            if (_smokeReport is not null) settings.VrControllerModeEnabled = false; // the smoke test starts in the full interface
 
             _engine = new AudioEngine(_log, settings.Mode);
             _engine.Start();
@@ -89,7 +90,8 @@ public partial class App : Application
             _instance?.ListenForActivation(() => Dispatcher.BeginInvoke(() => _window?.ShowFromTray()));
 
             bool hidden = (startMinimized || settings.StartMinimized) && settings.MinimizeToTray && _smokeReport is null;
-            if (!hidden) _window.Show();
+            if (hidden) new System.Windows.Interop.WindowInteropHelper(_window).EnsureHandle(); // hotkey works from the tray
+            else _window.ShowStartupInterface();
 
             await _vm.InitializeAsync();
             if (!hidden) _vm.SetMetersActive(true);
@@ -171,10 +173,99 @@ public partial class App : Application
         sb.AppendLine("Process loopback probe (own process): " + await Task.Run(ProbeProcessLoopback));
         sb.AppendLine("Soundboard probe: " + await ProbeSoundboardAsync());
         sb.AppendLine(inv, $"Soundboard monitor: {_engine.Status.MonitorState} – {_engine.Status.MonitorMessage}");
-        WriteSmokeReport(sb.ToString());
+        string mix = ProbeSmartMixing();
+        sb.AppendLine("Smart mixing probe: " + mix);
+        string ui = await ProbeInterfaceModesAsync();
+        sb.AppendLine("Interface probe: " + ui);
+        ok &= mix.StartsWith("OK", StringComparison.Ordinal) && ui.StartsWith("OK", StringComparison.Ordinal);
+        WriteSmokeReport((ok ? string.Empty : "FAIL: smart mixing or interface probe\n") + sb.ToString());
 
         _window.ExitApplication();
         Shutdown(ok ? 0 : 1);
+    }
+
+    /// <summary>
+    /// Exercises the real engine's router with the settings toggles: talk over music and auto-mute during a soundboard
+    /// voice, using an isolated router so that the running graph and the user's devices are not disturbed.
+    /// </summary>
+    private static string ProbeSmartMixing()
+    {
+        try
+        {
+            const int rate = 48000, block = 480;
+            var router = new VoxShift.Core.Audio.AudioRouter(rate, VoxShift.Core.Audio.AudioSource.Application) { TalkOverMusic = true, AutoMuteMicrophone = true };
+            var mic = new float[block * 2];
+            var app = new float[block * 2];
+            Array.Fill(mic, 0.25f);
+            Array.Fill(app, -0.5f);
+            var output = new float[block * 2];
+            void Step()
+            {
+                router.Microphone.Write(mic, block, rate);
+                router.Application.Write(app, block, rate);
+                router.Render(output, block);
+            }
+
+            for (int i = 0; i < 20; i++) Step();
+            float both = output[^1]; // -0.25 = app + mic
+            router.Soundboard.Play("probe", new VoxShift.Core.Audio.AudioClip(new float[rate / 10 * 2], rate));
+            for (int i = 0; i < 5; i++) Step();
+            float muted = output[^1]; // -0.5 = app only
+            bool suppressed = router.IsMicrophoneSuppressed;
+            for (int i = 0; i < 40; i++) Step();
+            float restored = output[^1];
+            bool ok = Math.Abs(both + 0.25f) < 0.01f && Math.Abs(muted + 0.5f) < 0.01f && suppressed && Math.Abs(restored + 0.25f) < 0.01f
+                      && !router.IsMicrophoneSuppressed;
+            var inv = CultureInfo.InvariantCulture;
+            return (ok ? "OK" : "FAILED") + string.Format(inv, " (app+mic {0:0.00}, during sound {1:0.00}, after {2:0.00})", both, muted, restored);
+        }
+        catch (Exception ex)
+        {
+            return "FAILED: " + ex.GetType().Name + ": " + ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Shows the soundboard dock, collapses and expands it, switches to VR Controller Mode and back, and checks that
+    /// the audio engine and its soundboard player stay the very same instances (no restart, no duplicates).
+    /// </summary>
+    private async Task<string> ProbeInterfaceModesAsync()
+    {
+        try
+        {
+            var engine = _engine!;
+            var router = engine.Router;
+            var player = engine.Soundboard;
+            _vm!.SoundboardDockVisible = true;
+            _vm.Soundboard.IsExpanded = true;
+            await Task.Delay(400);
+            var dock = _window!.Dock;
+            bool dockShown = dock.IsVisible && dock.IsLoaded;
+            var main = new System.Windows.Rect(_window.Left, _window.Top, _window.ActualWidth, _window.ActualHeight);
+            bool dockRight = dock.Left >= main.Right - 24 && Math.Abs(dock.Top - main.Top) < 24;
+            _vm.Soundboard.IsExpanded = false;
+            await Task.Delay(300);
+            bool collapsed = dock.IsVisible && dock.ActualWidth < 120;
+            _vm.Soundboard.IsExpanded = true;
+            await Task.Delay(300);
+
+            _vm.VrControllerMode = true;
+            await Task.Delay(600);
+            var vr = _window.VrWindow;
+            bool vrShown = vr is { IsVisible: true, IsLoaded: true } && !_window.IsVisible && !dock.IsVisible;
+            _vm.VrControllerMode = false;
+            await Task.Delay(600);
+            bool back = _window.IsVisible && dock.IsVisible && vr is { IsVisible: false };
+            bool sameEngine = ReferenceEquals(engine, _engine) && ReferenceEquals(router, _engine.Router) && ReferenceEquals(player, _engine.Soundboard);
+
+            bool ok = dockShown && dockRight && collapsed && vrShown && back && sameEngine;
+            return $"{(ok ? "OK" : "FAILED")} (dock shown={dockShown}, right of main={dockRight}, collapsed strip={collapsed}, " +
+                   $"VR mode shown={vrShown}, back to full={back}, same audio engine={sameEngine})";
+        }
+        catch (Exception ex)
+        {
+            return "FAILED: " + ex.GetType().Name + ": " + ex.Message;
+        }
     }
 
     /// <summary>Activates, initialises, starts and stops a process loopback capture of this process.</summary>
