@@ -10,13 +10,14 @@ on:
       - "src/VoxShift/Views/**"
       - "src/VoxShift/Themes/**"
       - "src/VoxShift/Services/ScreenshotRenderer.cs"
+      - "Directory.Build.props" # the version is shown in the UI
 
 permissions:
   contents: write
 
 jobs:
   screenshots:
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7
 

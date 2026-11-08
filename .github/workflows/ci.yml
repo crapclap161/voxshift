@@ -20,7 +20,7 @@ env:
 jobs:
   validate:
     name: Format, build & test (Linux)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -42,7 +42,7 @@ jobs:
 
   windows:
     name: Build, publish & smoke test (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2025
     needs: validate
     steps:
       - uses: actions/checkout@v7
@@ -83,8 +83,8 @@ jobs:
         continue-on-error: true # artifact storage quota must never fail CI
         with:
           name: VoxShift-preview-win-x64
+          # The portable EXE is the same binary as the one inside the ZIP, so upload it only once.
           path: |
-            dist/*.exe
-            dist/*.zip
+            dist/*-portable.exe
             dist/SHA256SUMS.txt
           retention-days: 7

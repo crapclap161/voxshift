@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-11-08
+
+Maintenance release: build and release pipeline updates. The application's features and behaviour are unchanged.
+
+### Changed
+- GitHub Actions updated to their current major versions (`actions/checkout` v7, `actions/setup-dotnet` v6,
+  `actions/upload-artifact` v7, `softprops/action-gh-release` v3). This removes the Node.js 20 deprecation warnings.
+- CI runners pinned to explicit images (`ubuntu-24.04`, `windows-2025`) for reproducible builds. This also removes the
+  `ubuntu-latest` migration notice.
+- Test runner updated to `xunit.runner.visualstudio` 4.0.1 (all 65 tests unchanged and passing).
+- CI preview artifacts contain the portable EXE and checksums only, which halves their size.
+- Dependabot groups GitHub Actions updates into a single pull request.
+
 ## [0.0.1] - 2026-11-08
 
 First public release of VoxShift (previously developed as “VRChat Audio Switcher”).
@@ -41,5 +54,6 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
 - New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
   portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
-[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/crapclap161/voxshift/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/crapclap161/voxshift/releases/tag/v0.0.1
