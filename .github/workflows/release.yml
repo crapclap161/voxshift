@@ -74,7 +74,7 @@ jobs:
         run: ./scripts/package.ps1 -Version ${{ steps.version.outputs.version }} -PublishDir publish -OutputDir dist
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
