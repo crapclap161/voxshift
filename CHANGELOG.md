@@ -6,6 +6,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-11-11
+
+**Window Closing & System Tray Fix.** Clicking the X button no longer produces error dialogs; it asks what to do.
+
+### Fixed
+- **Clicking X showed two "An unexpected error occurred: Cannot set Visibility to Visible or call Show, ShowDialog,
+  Close, or WindowInteropHelper.EnsureHandle while a Window is closing" dialogs.** Root cause: the window's
+  `Closing` handlers changed window state while WPF was still closing the window. The main window cancelled the close
+  and then called `Close()` on itself, the docked soundboard and the VR window from inside that handler, and the
+  dock's and VR window's own `Closing` handlers hid windows (via the view model and the dock controller) in the
+  middle of their own close. Every such call throws in WPF. Closing now only queues a request; all window changes
+  happen after the handler returned.
+- Shutdown runs exactly once, no matter how often X is clicked or whether tray Exit, the dialog and the X button
+  race; stale queued UI callbacks, dock repositioning and tray restore are ignored once shutdown has begun.
+- Closing the soundboard dock or the VR window (X / Alt+F4) now hides it safely instead of hiding it from inside its
+  own `Closing` event.
+- No error dialog is shown any more after shutdown started, and a second error dialog is never stacked on an open one
+  (errors are still logged).
+
+### Added
+- **Close confirmation:** *What would you like to do with VoxShift?* with **Minimize to Tray**, **Quit VoxShift** and
+  **Cancel**, plus **Remember my choice** (Cancel is never remembered). One dialog per close action.
+- **Setting "When clicking the X button":** *Always ask* (default), *Minimize to system tray* or *Quit VoxShift*.
+- One-time notice "VoxShift is still running in the system tray" the first time VoxShift hides into the tray.
+
+### Changed
+- Tray menu: **Show VoxShift** and **Exit VoxShift**. Exit shuts down immediately without any dialog.
+- Quitting stops the windows first, then saves settings and releases the audio engine, hotkey and tray icon once; the
+  process always ends (a watchdog ends it with a log entry if a foreign thread still keeps it alive).
+- The Windows smoke test now drives the real window lifecycle (X button, dialog, Cancel, minimize, restore, remembered
+  action, collapsed dock, VR Controller Mode, tray) and requires the process to exit by itself after *Quit*.
+
 ## [0.0.5] - 2026-11-08
 
 **VR Control & Smart Audio Update.** A redesigned, VR-friendly interface, a soundboard that docks to the window,
@@ -176,7 +208,8 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
 - New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
   portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
-[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.6...HEAD
+[0.0.6]: https://github.com/crapclap161/voxshift/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/crapclap161/voxshift/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/crapclap161/voxshift/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/crapclap161/voxshift/compare/v0.0.2...v0.0.3

@@ -46,6 +46,13 @@ public sealed class AppSettings
 
     public bool StartMinimized { get; set; }
 
+    /// <summary>What the X button of the main window does (v0.0.6). Existing users get "Ask".</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public CloseButtonAction CloseButtonAction { get; set; } = CloseButtonAction.Ask;
+
+    /// <summary>The one-time "VoxShift is still running in the system tray" notice has been shown.</summary>
+    public bool TrayNoticeShown { get; set; }
+
     public bool HotkeyEnabled { get; set; }
 
     /// <summary>Global hotkey that toggles between the two modes, e.g. "Ctrl+Alt+M".</summary>
@@ -113,6 +120,7 @@ public sealed class AppSettings
         MicrophoneVolumePercent = VolumeMath.ClampPercent(MicrophoneVolumePercent);
         ApplicationVolumePercent = VolumeMath.ClampPercent(ApplicationVolumePercent);
         if (!Enum.IsDefined(Mode)) Mode = AudioSource.Microphone;
+        if (!Enum.IsDefined(CloseButtonAction)) CloseButtonAction = CloseButtonAction.Ask;
         SoundboardVolumePercent = VolumeMath.ClampPercent(SoundboardVolumePercent);
         SoundboardMonitorVolumePercent = VolumeMath.ClampPercent(SoundboardMonitorVolumePercent);
         SelectedSoundboardId ??= string.Empty;

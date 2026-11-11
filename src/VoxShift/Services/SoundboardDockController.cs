@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using VoxShift.Core.Layout;
+using VoxShift.Core.Lifecycle;
 using VoxShift.ViewModels;
 using VoxShift.Views;
 
@@ -29,12 +30,14 @@ internal sealed class SoundboardDockController : IDisposable
     private readonly Window _main;
     private readonly SoundboardDockWindow _dock;
     private readonly MainViewModel _vm;
+    private readonly LifecycleCoordinator _lifecycle;
     private HwndSource? _mainSource;
     private bool _positioning;
     private bool _disposed;
 
-    public SoundboardDockController(Window main, SoundboardDockWindow dock, MainViewModel vm)
+    public SoundboardDockController(Window main, SoundboardDockWindow dock, MainViewModel vm, LifecycleCoordinator lifecycle)
     {
+        _lifecycle = lifecycle;
         _main = main;
         _dock = dock;
         _vm = vm;
@@ -45,7 +48,7 @@ internal sealed class SoundboardDockController : IDisposable
         _main.IsVisibleChanged += OnMainVisibleChanged;
         _main.SourceInitialized += (_, _) => HookMain();
         if (new WindowInteropHelper(_main).Handle != IntPtr.Zero) HookMain();
-        _dock.DpiChanged += (_, _) => Reposition(allowMoveMain: false);
+        _dock.DpiChanged += OnDockDpiChanged;
         _dock.MoveRequested += () =>
         {
             var hwnd = new WindowInteropHelper(_main).Handle;
@@ -58,7 +61,7 @@ internal sealed class SoundboardDockController : IDisposable
 
     /// <summary>Whether the dock should be on screen right now.</summary>
     public bool IsWanted =>
-        !_disposed && _vm.SoundboardDockVisible && !_vm.VrControllerMode && _main.IsVisible && _main.WindowState != WindowState.Minimized;
+        !_disposed && !_lifecycle.IsShuttingDown && _vm.SoundboardDockVisible && !_vm.VrControllerMode && _main.IsVisible && _main.WindowState != WindowState.Minimized;
 
     public double CurrentWidthDip => _vm.Soundboard.IsExpanded ? _vm.SoundboardDockWidth : CollapsedWidth;
 
@@ -98,6 +101,8 @@ internal sealed class SoundboardDockController : IDisposable
         if (e.PropertyName == nameof(SoundboardViewModel.IsExpanded)) Reposition(allowMoveMain: true);
     }
 
+    private void OnDockDpiChanged(object sender, DpiChangedEventArgs e) => Reposition(allowMoveMain: false);
+
     private void OnMainGeometryChanged(object? sender, EventArgs e) => Reposition(allowMoveMain: false);
 
     private void OnMainStateChanged(object? sender, EventArgs e) => UpdateVisibility();
@@ -107,7 +112,7 @@ internal sealed class SoundboardDockController : IDisposable
     /// <summary>Shows or hides the dock to match the main window and the user's choice.</summary>
     public void UpdateVisibility()
     {
-        if (_disposed) return;
+        if (_disposed || _lifecycle.IsShuttingDown) return; // never show or hide windows that are going away
         if (IsWanted)
         {
             if (_dock.Owner is null && new WindowInteropHelper(_main).Handle != IntPtr.Zero) _dock.Owner = _main;
@@ -128,7 +133,7 @@ internal sealed class SoundboardDockController : IDisposable
     /// <summary>Places the dock flush against the right edge of the main window's visible frame.</summary>
     public void Reposition(bool allowMoveMain)
     {
-        if (_disposed || _positioning || !_dock.IsVisible) return;
+        if (_disposed || _lifecycle.IsShuttingDown || _positioning || !_dock.IsVisible) return;
         var mainHwnd = new WindowInteropHelper(_main).Handle;
         var dockHwnd = new WindowInteropHelper(_dock).Handle;
         if (mainHwnd == IntPtr.Zero || dockHwnd == IntPtr.Zero) return;
@@ -153,14 +158,6 @@ internal sealed class SoundboardDockController : IDisposable
         }
     }
 
-    /// <summary>Called on exit: lets the dock really close.</summary>
-    public void Close()
-    {
-        Dispose();
-        _dock.AllowClose = true;
-        _dock.Close();
-    }
-
     public void Dispose()
     {
         if (_disposed) return;
@@ -169,6 +166,7 @@ internal sealed class SoundboardDockController : IDisposable
         _main.SizeChanged -= OnMainGeometryChanged;
         _main.StateChanged -= OnMainStateChanged;
         _main.IsVisibleChanged -= OnMainVisibleChanged;
+        _dock.DpiChanged -= OnDockDpiChanged;
         _vm.PropertyChanged -= OnViewModelChanged;
         _vm.Soundboard.PropertyChanged -= OnSoundboardChanged;
         _mainSource?.RemoveHook(MainWndProc);

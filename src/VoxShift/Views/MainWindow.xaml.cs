@@ -4,9 +4,12 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using VoxShift.Core.Audio;
+using VoxShift.Core.Config;
 using VoxShift.Core.Input;
 using VoxShift.Core.Layout;
+using VoxShift.Core.Lifecycle;
 using VoxShift.Services;
 using VoxShift.ViewModels;
 
@@ -22,21 +25,21 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
     private readonly TrayIcon _tray;
+    private readonly LifecycleCoordinator _lifecycle;
     private GlobalHotkey? _hotkey;
-    private bool _exiting;
-    private bool _trayHintShown;
     private VrControllerWindow? _vrWindow;
 
-    public MainWindow(MainViewModel vm)
+    public MainWindow(MainViewModel vm, LifecycleCoordinator? lifecycle = null)
     {
         _vm = vm;
+        _lifecycle = lifecycle ?? new LifecycleCoordinator();
         DataContext = vm;
         InitializeComponent();
 
         RestorePosition();
 
-        Dock = new SoundboardDockWindow(vm);
-        DockController = new SoundboardDockController(this, Dock, vm);
+        Dock = new SoundboardDockWindow(vm, _lifecycle);
+        DockController = new SoundboardDockController(this, Dock, vm, _lifecycle);
 
         _tray = new TrayIcon();
         _tray.ShowRequested += ShowFromTray;
@@ -46,7 +49,8 @@ public partial class MainWindow : Window
         _tray.TalkOverMusicToggled += () => _vm.TalkOverMusic = !_vm.TalkOverMusic;
         _tray.AutoMuteToggled += () => _vm.AutoMuteMicrophone = !_vm.AutoMuteMicrophone;
         _tray.VrModeToggled += () => _vm.VrControllerMode = !_vm.VrControllerMode;
-        _tray.ExitRequested += ExitApplication;
+        // Queued so that the tray menu has finished its click handling before the tray icon is disposed.
+        _tray.ExitRequested += () => Dispatcher.BeginInvoke(ExitApplication);
         _vm.ModeChanged += UpdateTray;
         _vm.SetupGuideRequested += ShowSetupGuide;
         _vm.PropertyChanged += OnViewModelPropertyChanged;
@@ -65,6 +69,9 @@ public partial class MainWindow : Window
     internal SoundboardDockWindow Dock { get; }
 
     internal SoundboardDockController DockController { get; }
+
+    /// <summary>Number of close requests (X clicks) that actually started the close workflow; repeats are ignored.</summary>
+    internal int CloseRequestsHandled { get; private set; }
 
     /// <summary>The VR Controller window, created on first use.</summary>
     internal VrControllerWindow? VrWindow => _vrWindow;
@@ -87,6 +94,7 @@ public partial class MainWindow : Window
     /// </summary>
     public void ShowStartupInterface()
     {
+        if (_lifecycle.IsShuttingDown) return;
         new WindowInteropHelper(this).EnsureHandle();
         if (_vm.VrControllerMode) ShowVrWindow();
         else
@@ -149,7 +157,7 @@ public partial class MainWindow : Window
                 UpdateTray();
                 break;
             case nameof(MainViewModel.VrControllerMode):
-                if (!_exiting) ApplyInterfaceMode();
+                if (!_lifecycle.IsShuttingDown) ApplyInterfaceMode();
                 break;
         }
     }
@@ -161,6 +169,7 @@ public partial class MainWindow : Window
 
     private void ApplyInterfaceMode()
     {
+        if (_lifecycle.IsShuttingDown) return;
         UpdateTray();
         if (_vm.VrControllerMode)
         {
@@ -180,9 +189,10 @@ public partial class MainWindow : Window
 
     private void ShowVrWindow()
     {
+        if (_lifecycle.IsShuttingDown) return;
         if (_vrWindow is null)
         {
-            _vrWindow = new VrControllerWindow(_vm);
+            _vrWindow = new VrControllerWindow(_vm, _lifecycle);
             _vrWindow.IsVisibleChanged += (_, _) => UpdateMetersActive();
             _vrWindow.StateChanged += (_, _) => UpdateMetersActive();
         }
@@ -195,6 +205,7 @@ public partial class MainWindow : Window
 
     private void ShowMainWindow()
     {
+        if (_lifecycle.IsShuttingDown) return; // never restore a window that is closing
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
@@ -220,56 +231,131 @@ public partial class MainWindow : Window
 
     private void OnStateChanged(object? sender, EventArgs e)
     {
-        if (WindowState == WindowState.Minimized && _vm.MinimizeToTray)
-        {
-            Hide();
-            if (!_trayHintShown)
-            {
-                _trayHintShown = true;
-                _tray.ShowBalloon("Still running", "VoxShift keeps routing audio from the tray. Right-click the icon to switch or exit.");
-            }
-        }
-
+        if (_lifecycle.IsShuttingDown) return;
+        if (WindowState == WindowState.Minimized && _vm.MinimizeToTray) HideToTray();
         UpdateMetersActive();
     }
 
     public void ShowFromTray()
     {
+        if (_lifecycle.IsShuttingDown) return;
         if (_vm.VrControllerMode) ShowVrWindow();
         else ShowMainWindow();
     }
 
     private void ShowSetupGuide()
     {
+        if (_lifecycle.IsShuttingDown) return;
         if (_vm.VrControllerMode) _vm.VrControllerMode = false;
         if (!IsVisible) ShowFromTray();
         new SetupHelpWindow { Owner = this }.ShowDialog();
     }
 
+    // ---- closing: one coordinated workflow ---------------------------------------------------------
+
+    /// <summary>
+    /// The X button. The close is always cancelled here and only a request is queued: WPF forbids Show, Hide, Close
+    /// and modal dialogs while a window is closing, so nothing else happens inside this handler. The main window is
+    /// only ever really closed by <c>Application.Shutdown</c>, after the shutdown sequence started.
+    /// </summary>
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (_exiting) return;
+        if (_lifecycle.IsShuttingDown) return; // the final close performed by Application.Shutdown / session end
         e.Cancel = true;
-        ExitApplication();
+        RequestClose();
     }
 
+    private void RequestClose()
+    {
+        // Repeated X clicks, Alt+F4 and a pending dialog all collapse into the single workflow that is already running.
+        if (!_lifecycle.TryBeginCloseRequest()) return;
+        Dispatcher.BeginInvoke(DispatcherPriority.Normal, HandleCloseRequest);
+    }
+
+    private void HandleCloseRequest()
+    {
+        if (_lifecycle.IsShuttingDown) return; // stale callback
+        CloseRequestsHandled++;
+        CloseChoice choice = _vm.CloseAction.ToChoice() ?? AskCloseChoice();
+        if (_lifecycle.IsShuttingDown) return; // e.g. "Exit VoxShift" from the tray while the dialog was open
+
+        switch (choice)
+        {
+            case CloseChoice.MinimizeToTray:
+                HideToTray();
+                break;
+            case CloseChoice.Quit:
+                ExitApplication();
+                break;
+            default:
+                _lifecycle.EndCloseRequest(); // Cancel: nothing else changes, audio is not touched
+                break;
+        }
+    }
+
+    private CloseChoice AskCloseChoice()
+    {
+        var dialog = new CloseConfirmationWindow();
+        Window? owner = IsVisible ? this : _vrWindow is { IsVisible: true } vr ? vr : null;
+        if (owner is not null) dialog.Owner = owner;
+        else dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
+        dialog.ShowDialog();
+        CloseChoice choice = dialog.Choice;
+        if (dialog.Remember && CloseButtonActionExtensions.FromRememberedChoice(choice) is { } action) _vm.CloseAction = action;
+        return choice;
+    }
+
+    /// <summary>
+    /// Hides every VoxShift window and keeps running in the tray: microphone / application routing and the soundboard
+    /// continue untouched (only windows change; the audio engine is never involved).
+    /// </summary>
+    internal void HideToTray()
+    {
+        if (!_lifecycle.TryBeginMinimizeToTray()) return;
+        try
+        {
+            if (IsVisible || !_vm.VrControllerMode) SavePosition();
+            _vrWindow?.SaveGeometry();
+            if (_vrWindow is { IsVisible: true }) _vrWindow.Hide();
+            if (IsVisible) Hide(); // the dock hides with it (SoundboardDockController); its state stays in the settings
+            DockController.UpdateVisibility();
+            UpdateMetersActive();
+            ShowTrayNoticeOnce();
+        }
+        finally
+        {
+            _lifecycle.EndMinimizeToTray();
+        }
+    }
+
+    private void ShowTrayNoticeOnce()
+    {
+        if (_vm.Settings.TrayNoticeShown) return;
+        _vm.Settings.TrayNoticeShown = true;
+        _vm.ScheduleSave();
+        _tray.ShowBalloon("VoxShift", "VoxShift is still running in the system tray.");
+    }
+
+    /// <summary>
+    /// The one and only shutdown sequence (X-button "Quit", saved "Quit" preference, tray "Exit VoxShift"). It runs
+    /// exactly once, never from inside a Closing handler, and it does not close or show any window itself:
+    /// <c>Application.Shutdown</c> (raised through <see cref="ExitRequested"/>) closes the remaining windows, whose
+    /// Closing handlers return immediately because the lifecycle says "shutting down".
+    /// </summary>
     public void ExitApplication()
     {
-        if (_exiting) return;
-        _exiting = true;
+        if (!_lifecycle.TryBeginShutdown()) return;
         if (IsVisible || !_vm.VrControllerMode) SavePosition();
-        if (_vrWindow is not null)
-        {
-            _vrWindow.SaveGeometry();
-            _vrWindow.AllowClose = true;
-            _vrWindow.Close();
-        }
-
-        DockController.Close();
+        _vrWindow?.SaveGeometry();
+        DockController.Dispose(); // unsubscribes: nothing can re-show the dock any more
+        _vm.ModeChanged -= UpdateTray;
+        _vm.SetupGuideRequested -= ShowSetupGuide;
+        _vm.PropertyChanged -= OnViewModelPropertyChanged;
+        _vm.HotkeyConfigurationChanged -= ApplyHotkey;
         _hotkey?.Dispose();
         _tray.Dispose();
         ExitRequested?.Invoke();
-        Close();
     }
 
     private void RestorePosition()

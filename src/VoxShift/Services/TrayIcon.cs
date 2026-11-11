@@ -22,7 +22,7 @@ public sealed class TrayIcon : IDisposable
         _autoMuteItem = new WinForms.ToolStripMenuItem("Auto-mute mic on sounds", null, (_, _) => AutoMuteToggled?.Invoke());
         _vrItem = new WinForms.ToolStripMenuItem("VR Controller Mode", null, (_, _) => VrModeToggled?.Invoke());
         var menu = new WinForms.ContextMenuStrip();
-        menu.Items.Add(new WinForms.ToolStripMenuItem("Show window", null, (_, _) => ShowRequested?.Invoke()) { Font = new Font(WinForms.Control.DefaultFont, FontStyle.Bold) });
+        menu.Items.Add(new WinForms.ToolStripMenuItem("Show VoxShift", null, (_, _) => ShowRequested?.Invoke()) { Font = new Font(WinForms.Control.DefaultFont, FontStyle.Bold) });
         // Always-available way out of VR Controller Mode (nobody can get stuck in a hidden window).
         menu.Items.Add(new WinForms.ToolStripMenuItem("Show full interface", null, (_, _) => FullInterfaceRequested?.Invoke()));
         menu.Items.Add(new WinForms.ToolStripSeparator());
@@ -33,7 +33,7 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(_autoMuteItem);
         menu.Items.Add(_vrItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());
-        menu.Items.Add(new WinForms.ToolStripMenuItem("Exit", null, (_, _) => ExitRequested?.Invoke()));
+        menu.Items.Add(new WinForms.ToolStripMenuItem("Exit VoxShift", null, (_, _) => ExitRequested?.Invoke()));
 
         _icon = new WinForms.NotifyIcon
         {

@@ -3,11 +3,16 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using VoxShift.Audio.Engine;
 using VoxShift.Core.Config;
+using VoxShift.Core.Lifecycle;
 using VoxShift.Core.Logging;
 using VoxShift.Services;
 using VoxShift.ViewModels;
@@ -28,12 +33,20 @@ public partial class App : Application
     private AudioEngine? _engine;
     private MainViewModel? _vm;
     private MainWindow? _window;
+    private readonly LifecycleCoordinator _lifecycle = new();
     private string? _smokeReport;
     private bool _cleanedUp;
+    private bool _errorDialogOpen;
+    private int _exitCode;
+    private int _uiErrors;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // The process only ends through our own Shutdown call (tray Exit, "Quit VoxShift", failed start), never as a
+        // side effect of a window closing; hiding to the tray must not end it either.
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        SessionEnding += (_, _) => _lifecycle.TryBeginShutdown(); // Windows log-off: windows may close without asking
         var args = e.Args;
         int smokeIndex = Array.FindIndex(args, a => a.Equals("--smoke-test", StringComparison.OrdinalIgnoreCase));
         if (smokeIndex >= 0) _smokeReport = smokeIndex + 1 < args.Length ? args[smokeIndex + 1] : "smoke-test.txt";
@@ -84,7 +97,7 @@ public partial class App : Application
             _engine.Start();
 
             _vm = new MainViewModel(_engine, store, settings, _log, Dispatcher, new DialogService());
-            _window = new MainWindow(_vm);
+            _window = new MainWindow(_vm, _lifecycle);
             _window.ExitRequested += OnExitRequested;
             MainWindow = _window;
             _instance?.ListenForActivation(() => Dispatcher.BeginInvoke(() => _window?.ShowFromTray()));
@@ -127,7 +140,7 @@ public partial class App : Application
             var settings = new AppSettings { HotkeyEnabled = true, ToggleHotkey = "Ctrl+Alt+M", MinimizeToTray = true };
             _engine = new AudioEngine(_log!, settings.Mode);
             _vm = new MainViewModel(_engine, store, settings, _log!, Dispatcher, new DialogService());
-            _window = new MainWindow(_vm);
+            _window = new MainWindow(_vm, _lifecycle);
             MainWindow = _window;
             await ScreenshotRenderer.RenderAsync(_window, _vm, Path.GetFullPath(directory));
             _log!.Info("Screenshots written to " + Path.GetFullPath(directory));
@@ -177,11 +190,144 @@ public partial class App : Application
         sb.AppendLine("Smart mixing probe: " + mix);
         string ui = await ProbeInterfaceModesAsync();
         sb.AppendLine("Interface probe: " + ui);
-        ok &= mix.StartsWith("OK", StringComparison.Ordinal) && ui.StartsWith("OK", StringComparison.Ordinal);
+        string close = await ProbeCloseLifecycleAsync();
+        sb.AppendLine("Close lifecycle probe: " + close);
+        ok &= mix.StartsWith("OK", StringComparison.Ordinal) && ui.StartsWith("OK", StringComparison.Ordinal)
+              && close.StartsWith("OK", StringComparison.Ordinal);
         WriteSmokeReport((ok ? string.Empty : "FAIL: smart mixing or interface probe\n") + sb.ToString());
 
-        _window.ExitApplication();
-        Shutdown(ok ? 0 : 1);
+        // Leave exactly like a user would: the X button with "Quit VoxShift" saved. The process must end by itself
+        // (scripts/smoke-test.ps1 fails if it does not exit within the timeout).
+        _exitCode = ok ? 0 : 1;
+        _vm.CloseAction = CloseButtonAction.Quit;
+        _window.Close();
+    }
+
+    private static async Task<T?> WaitForAsync<T>(Func<T?> probe)
+        where T : class
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            if (probe() is { } value) return value;
+            await Task.Delay(100);
+        }
+
+        return null;
+    }
+
+    private static void Click(Button button) =>
+        ((IInvokeProvider)new ButtonAutomationPeer(button).GetPattern(PatternInterface.Invoke)).Invoke();
+
+    private static CloseConfirmationWindow? FindCloseDialog() =>
+        Current.Windows.OfType<CloseConfirmationWindow>().FirstOrDefault();
+
+    /// <summary>
+    /// Drives the real window lifecycle (the same code path as the X button): exactly one confirmation dialog for
+    /// repeated clicks, Cancel, Minimize to Tray with "remember", restore without duplicate windows, remembered
+    /// actions, collapsed dock, a playing sound, VR Controller Mode, and that the audio engine is never replaced.
+    /// The final Quit is the caller's job.
+    /// </summary>
+    private async Task<string> ProbeCloseLifecycleAsync()
+    {
+        try
+        {
+            var engine = _engine!;
+            var router = engine.Router;
+            var player = engine.Soundboard;
+            var win = _window!;
+            var dock = win.Dock;
+            var vm = _vm!;
+            var life = _lifecycle;
+            int errorsBefore = _uiErrors;
+            vm.VrControllerMode = false;
+            vm.SoundboardDockVisible = true;
+            vm.Soundboard.IsExpanded = true;
+            await Task.Delay(400);
+            if (!win.IsVisible) win.ShowFromTray();
+
+            // 1) Always ask: rapid X clicks open exactly one dialog; Cancel changes nothing.
+            vm.CloseAction = CloseButtonAction.Ask;
+            for (int i = 0; i < 4; i++) win.Close();
+            var dialog = await WaitForAsync(FindCloseDialog);
+            await Task.Delay(300);
+            bool oneDialog = dialog is not null && CloseConfirmationWindow.OpenCount == 1 && life.State == AppLifecycleState.CloseConfirmationPending;
+            if (dialog is not null) Click(dialog.CancelButton);
+            await Task.Delay(300);
+            bool cancelKept = win.IsVisible && dock.IsVisible && life.State == AppLifecycleState.Running && CloseConfirmationWindow.OpenCount == 0;
+
+            // 2) Minimize to Tray + "Remember my choice" while a sound plays and the dock is expanded.
+            router.Soundboard.Play("close-probe", new VoxShift.Core.Audio.AudioClip(new float[48000 * 10 * 2], 48000));
+            win.Close();
+            dialog = await WaitForAsync(FindCloseDialog);
+            if (dialog is not null)
+            {
+                dialog.RememberBox.IsChecked = true;
+                Click(dialog.MinimizeButton);
+            }
+
+            await Task.Delay(400);
+            bool hidden = !win.IsVisible && !dock.IsVisible && life.State == AppLifecycleState.Running;
+            bool remembered = vm.CloseAction == CloseButtonAction.MinimizeToTray;
+            bool audioUntouched = ReferenceEquals(engine, _engine) && ReferenceEquals(router, engine.Router) && ReferenceEquals(player, engine.Soundboard)
+                                  && router.Soundboard.IsPlaying("close-probe");
+
+            // 3) Restore from the tray: same windows, no duplicates.
+            win.ShowFromTray();
+            await Task.Delay(400);
+            bool restored = win.IsVisible && dock.IsVisible && ReferenceEquals(win.Dock, dock)
+                            && Current.Windows.OfType<SoundboardDockWindow>().Count() == 1 && Current.Windows.OfType<MainWindow>().Count() == 1;
+
+            // 4) Remembered action: no dialog, repeated clicks run the workflow once.
+            int handled = win.CloseRequestsHandled;
+            for (int i = 0; i < 4; i++) win.Close();
+            await Task.Delay(400);
+            bool noDialog = CloseConfirmationWindow.OpenCount == 0 && !win.IsVisible && !dock.IsVisible && win.CloseRequestsHandled == handled + 1;
+            win.ShowFromTray();
+            await Task.Delay(300);
+
+            // 5) Collapsed dock survives hide and restore.
+            vm.Soundboard.IsExpanded = false;
+            await Task.Delay(300);
+            win.Close();
+            await Task.Delay(400);
+            bool collapsedHidden = !win.IsVisible && !dock.IsVisible;
+            win.ShowFromTray();
+            await Task.Delay(400);
+            bool collapsedRestored = win.IsVisible && dock.IsVisible && !vm.Soundboard.IsExpanded;
+            vm.Soundboard.IsExpanded = true;
+            await Task.Delay(300);
+
+            // 6) VR Controller Mode: its X returns to the full interface; tray minimize and restore work.
+            vm.VrControllerMode = true;
+            await Task.Delay(600);
+            var vr = win.VrWindow;
+            bool vrUp = vr is { IsVisible: true } && !win.IsVisible;
+            vr?.Close();
+            await Task.Delay(600);
+            bool vrBack = !vm.VrControllerMode && win.IsVisible && vr is { IsVisible: false };
+            vm.VrControllerMode = true;
+            await Task.Delay(600);
+            win.HideToTray();
+            await Task.Delay(300);
+            bool vrHidden = vr is { IsVisible: false } && !win.IsVisible && vm.VrControllerMode;
+            win.ShowFromTray();
+            await Task.Delay(400);
+            bool vrRestored = vr is { IsVisible: true } && !win.IsVisible;
+            vm.VrControllerMode = false;
+            await Task.Delay(600);
+
+            router.Soundboard.Clear();
+            bool noErrors = _uiErrors == errorsBefore;
+            bool ok = oneDialog && cancelKept && hidden && remembered && audioUntouched && restored && noDialog && collapsedHidden
+                      && collapsedRestored && vrUp && vrBack && vrHidden && vrRestored && noErrors && win.IsVisible;
+            return $"{(ok ? "OK" : "FAILED")} (one dialog={oneDialog}, cancel keeps open={cancelKept}, minimize hides all={hidden}, remembered={remembered}, " +
+                   $"audio untouched={audioUntouched}, restore without duplicates={restored}, remembered action once without dialog={noDialog}, " +
+                   $"collapsed hide/restore={collapsedHidden}/{collapsedRestored}, VR up/back/tray/restore={vrUp}/{vrBack}/{vrHidden}/{vrRestored}, no UI errors={noErrors})";
+        }
+        catch (Exception ex)
+        {
+            return "FAILED: " + ex.GetType().Name + ": " + ex.Message;
+        }
     }
 
     /// <summary>
@@ -372,11 +518,8 @@ public partial class App : Application
         }
     }
 
-    private void OnExitRequested()
-    {
-        Cleanup();
-        Dispatcher.BeginInvoke(() => Shutdown(0), DispatcherPriority.Background);
-    }
+    /// <summary>Raised once by the main window's shutdown sequence. Windows are closed by Shutdown; cleanup runs in OnExit.</summary>
+    private void OnExitRequested() => Shutdown(_exitCode);
 
     private void Cleanup()
     {
@@ -391,15 +534,38 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _lifecycle.TryBeginShutdown();
         Cleanup();
+        _lifecycle.MarkExited();
+        StartExitWatchdog(_log, _exitCode);
         _log?.Dispose();
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Safety net, not a workaround: the shutdown sequence has finished, so if some foreign foreground thread still keeps
+    /// the process alive after a generous delay, end it (and say so in the log) instead of leaving a hidden process.
+    /// </summary>
+    private static void StartExitWatchdog(FileLog? log, int exitCode)
+    {
+        var thread = new Thread(() =>
+        {
+            Thread.Sleep(10_000);
+            try { log?.Warn("The process did not exit 10 s after shutdown; forcing exit."); } catch (ObjectDisposedException) { }
+            Environment.Exit(exitCode);
+        })
+        {
+            IsBackground = true,
+            Name = "VoxShift exit watchdog",
+        };
+        thread.Start();
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         _log?.Error("Unhandled UI exception.", e.Exception);
         e.Handled = true;
+        _uiErrors++;
         if (_smokeReport is not null)
         {
             WriteSmokeReport("FAIL\n" + e.Exception);
@@ -408,7 +574,18 @@ public partial class App : Application
             return;
         }
 
-        MessageBox.Show("An unexpected error occurred:\n\n" + e.Exception.Message + "\n\nThe app keeps running. Details are in the log folder.",
-            "VoxShift", MessageBoxButton.OK, MessageBoxImage.Warning);
+        // Once shutdown has begun nobody can act on a dialog: log only. While one error dialog is open (it pumps
+        // messages), further errors are logged but never stacked as duplicate dialogs.
+        if (_lifecycle.IsShuttingDown || _errorDialogOpen) return;
+        _errorDialogOpen = true;
+        try
+        {
+            MessageBox.Show("An unexpected error occurred:\n\n" + e.Exception.Message + "\n\nThe app keeps running. Details are in the log folder.",
+                "VoxShift", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            _errorDialogOpen = false;
+        }
     }
 }

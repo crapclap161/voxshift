@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using VoxShift.Core.Lifecycle;
 using VoxShift.Services;
 using VoxShift.ViewModels;
 
@@ -18,10 +19,12 @@ namespace VoxShift.Views;
 public partial class SoundboardDockWindow : Window
 {
     private readonly MainViewModel _vm;
+    private readonly LifecycleCoordinator _lifecycle;
 
-    public SoundboardDockWindow(MainViewModel vm)
+    public SoundboardDockWindow(MainViewModel vm, LifecycleCoordinator? lifecycle = null)
     {
         _vm = vm;
+        _lifecycle = lifecycle ?? new LifecycleCoordinator();
         DataContext = vm;
         InitializeComponent();
         SourceInitialized += (_, _) =>
@@ -33,7 +36,7 @@ public partial class SoundboardDockWindow : Window
         Closing += OnClosing;
     }
 
-    /// <summary>Set by the shell on application exit; otherwise closing only hides the dock.</summary>
+    /// <summary>Lets the dock really close (documentation rendering only); otherwise closing only hides the dock.</summary>
     public bool AllowClose { get; set; }
 
     /// <summary>Raised when the user drags the dock header: the shell moves the main window (the dock follows).</summary>
@@ -44,10 +47,17 @@ public partial class SoundboardDockWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (AllowClose) return;
+        // During application shutdown the dock is closed together with its owner: nothing to do, and above all no
+        // visibility changes (WPF forbids Show/Hide/Close while a window is closing).
+        if (AllowClose || _lifecycle.IsShuttingDown) return;
+
         // Alt+F4 on the dock must never quit VoxShift: just hide the soundboard (Show soundboard brings it back).
+        // The hide is queued so that it runs after this handler returned and the window is no longer "closing".
         e.Cancel = true;
-        _vm.SoundboardDockVisible = false;
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (!_lifecycle.IsShuttingDown) _vm.SoundboardDockVisible = false;
+        });
     }
 
     private void OnHeaderMouseDown(object sender, MouseButtonEventArgs e)

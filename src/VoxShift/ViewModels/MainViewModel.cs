@@ -48,6 +48,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private EngineStatus _status;
     private bool _alwaysOnTop;
     private bool _minimizeToTray;
+    private CloseButtonAction _closeAction;
     private bool _hotkeyEnabled;
     private string _hotkeyText;
     private string? _hotkeyError;
@@ -79,6 +80,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _mode = settings.Mode;
         _alwaysOnTop = settings.AlwaysOnTop;
         _minimizeToTray = settings.MinimizeToTray;
+        _closeAction = settings.CloseButtonAction;
         _hotkeyEnabled = settings.HotkeyEnabled;
         _hotkeyText = settings.ToggleHotkey;
         _startMinimized = settings.StartMinimized;
@@ -700,6 +702,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>What the main window's X button does (Ask / Minimize to tray / Quit).</summary>
+    public CloseButtonAction CloseAction
+    {
+        get => _closeAction;
+        set
+        {
+            if (!Set(ref _closeAction, value)) return;
+            _settings.CloseButtonAction = value;
+            ScheduleSave();
+        }
+    }
+
+    public IReadOnlyList<CloseActionOption> CloseActionOptions { get; } =
+    [
+        new(CloseButtonAction.Ask, "Always ask"),
+        new(CloseButtonAction.MinimizeToTray, "Minimize to system tray"),
+        new(CloseButtonAction.Quit, "Quit VoxShift"),
+    ];
+
     public bool HotkeyEnabled
     {
         get => _hotkeyEnabled;
@@ -921,3 +942,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveNow();
     }
 }
+
+/// <summary>One entry of the "When clicking the X button" list.</summary>
+public sealed record CloseActionOption(CloseButtonAction Value, string Label);

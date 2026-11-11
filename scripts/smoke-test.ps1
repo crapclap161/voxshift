@@ -45,5 +45,6 @@ if ($text -notmatch '(?m)^Window title: VoxShift') { throw 'Window title is not 
 if ($text -notmatch 'Process loopback probe \(own process\): OK') { throw 'Process loopback capture probe failed.' }
 if ($text -notmatch 'Soundboard probe: OK') { throw 'Soundboard probe failed (import, decode, resample or mixer).' }
 if ($text -notmatch 'Smart mixing probe: OK') { throw 'Smart mixing probe failed (talk over music / soundboard auto-mute).' }
+if ($text -notmatch 'Close lifecycle probe: OK') { throw 'Close lifecycle probe failed (X button dialog, tray minimize/restore, Quit, secondary windows).' }
 if ($text -notmatch 'Interface probe: OK') { throw 'Interface probe failed (soundboard dock or VR Controller Mode).' }
 Write-Host 'Smoke test passed.'

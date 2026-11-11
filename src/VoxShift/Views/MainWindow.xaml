@@ -500,6 +500,11 @@
                             <CheckBox Content="Start in tray" IsChecked="{Binding StartMinimized}" IsEnabled="{Binding MinimizeToTray}" MinHeight="36" Margin="0,0,0,6"
                                       ToolTip="Start hidden in the system tray (requires Minimize to tray)" />
                         </WrapPanel>
+                        <TextBlock x:Name="CloseActionLabel" Style="{StaticResource FieldLabel}" Text="When clicking the X button" Margin="0,4,0,4" />
+                        <ComboBox Style="{StaticResource BigCombo}" ItemsSource="{Binding CloseActionOptions}" DisplayMemberPath="Label"
+                                  SelectedValuePath="Value" SelectedValue="{Binding CloseAction, Mode=TwoWay}" Margin="0,0,0,10"
+                                  AutomationProperties.LabeledBy="{Binding ElementName=CloseActionLabel}"
+                                  ToolTip="Always ask, minimize VoxShift to the system tray, or quit it" />
                         <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />

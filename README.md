@@ -329,6 +329,7 @@ adds columns as it gets wider.
 **Comfort and reliability**
 - Recovers automatically when devices are unplugged or Windows defaults change
 - Always on top, minimize to tray, start in tray
+- **Close button your way:** ask, minimize to the tray or quit (*When clicking the X button*)
 - Remembers all settings, migrates older versions automatically
 - 100 % local: no network access, no telemetry, no admin rights
 
@@ -414,7 +415,8 @@ flowchart LR
 | Show / hide the soundboard | **Show soundboard** in the title area or `Ctrl+B`; collapse it with **◀** |
 | Use it with a headset on | **VR mode** → large controls; **BACK TO FULL INTERFACE** to return |
 | Refresh the app list | ⟳ or `F5` |
-| Run in the background | Enable *Minimize to tray* (and optionally *Start in tray*) |
+| Run in the background | Click **X** → **Minimize to Tray**, or set *When clicking the X button* to *Minimize to system tray* |
+| Quit completely | Click **X** → **Quit VoxShift**, or tray icon → **Exit VoxShift** |
 | Start hidden from a script or shortcut | `VoxShift.exe --minimized` |
 
 Settings are stored in `%APPDATA%\VoxShift\settings.json` and logs in `%LOCALAPPDATA%\VoxShift\logs`
@@ -456,6 +458,7 @@ use it), *Auto-mute* starts **on**, *Talk over music* starts **off**, and the fu
 | I can't hear anything on my PC anymore | Your Windows default output is CABLE Input. Set your headphones as default (VoxShift warns about this). |
 | Others hear the music twice or with an echo | The music app outputs directly to *CABLE Input* (*Settings → Sound → Volume mixer*). Reset it to your headphones, and disable *“Listen to this device”* on CABLE Output. |
 | The soundboard dock is gone | Click **Show soundboard** (Ctrl+B) in the title area. If it is a slim strip, click its **▶** handle. |
+| Where did VoxShift go after I clicked X? | It is in the system tray (*Minimize to Tray*) and keeps routing audio. Tray icon → **Show VoxShift**. Choose *Quit VoxShift* (or tray → **Exit VoxShift**) to close it completely. |
 | I'm stuck in VR Controller Mode / can't find the window | Click **BACK TO FULL INTERFACE**, press Esc, or use the tray icon → **Show full interface**. |
 | The dock sits on top of the main window | The screen is too narrow (or the window is maximized). Restore the window or collapse the dock. |
 | The app shows *“is not running”* | Start the program and press ⟳. It's also picked up automatically once it starts. |

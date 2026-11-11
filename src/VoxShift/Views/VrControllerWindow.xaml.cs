@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Interop;
+using VoxShift.Core.Lifecycle;
 using VoxShift.Services;
 using VoxShift.ViewModels;
 
@@ -16,10 +17,12 @@ namespace VoxShift.Views;
 public partial class VrControllerWindow : Window
 {
     private readonly MainViewModel _vm;
+    private readonly LifecycleCoordinator _lifecycle;
 
-    public VrControllerWindow(MainViewModel vm)
+    public VrControllerWindow(MainViewModel vm, LifecycleCoordinator? lifecycle = null)
     {
         _vm = vm;
+        _lifecycle = lifecycle ?? new LifecycleCoordinator();
         DataContext = vm;
         InitializeComponent();
         RestoreGeometry();
@@ -28,7 +31,7 @@ public partial class VrControllerWindow : Window
         Closing += OnClosing;
     }
 
-    /// <summary>Set by the shell on application exit; otherwise closing returns to the full interface.</summary>
+    /// <summary>Lets the window really close (documentation rendering only); otherwise closing returns to the full interface.</summary>
     public bool AllowClose { get; set; }
 
     /// <summary>Sound tile columns follow the window width (~240 DIP per tile).</summary>
@@ -36,12 +39,17 @@ public partial class VrControllerWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (_lifecycle.IsShuttingDown) return; // closed by Application.Shutdown; geometry was saved by the shell
         SaveGeometry();
         if (AllowClose) return;
         // The window's X never quits VoxShift (no one should be locked out with a headset on): it returns to the
-        // full interface. Exit stays available in the full window and the tray menu.
+        // full interface. Exit stays available in the full window and the tray menu. Switching hides this window,
+        // so it is queued until this handler returned (WPF forbids Hide/Show/Close while a window is closing).
         e.Cancel = true;
-        _vm.VrControllerMode = false;
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (!_lifecycle.IsShuttingDown) _vm.VrControllerMode = false;
+        });
     }
 
     private void OnPageUp(object sender, RoutedEventArgs e) => SoundsScroller.PageUp();
