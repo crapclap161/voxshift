@@ -5,7 +5,7 @@ using System.Windows.Media;
 namespace VoxShift.Controls;
 
 /// <summary>
-/// Lightweight horizontal level meter (dB scale, 0..1 input) drawn directly in OnRender, which is far
+/// Lightweight segmented (LED-style) horizontal level meter (dB scale, 0..1 input) drawn directly in OnRender, which is far
 /// cheaper than a templated ProgressBar when updated ~30 times per second.
 /// </summary>
 public sealed class LevelMeter : FrameworkElement
@@ -18,23 +18,39 @@ public sealed class LevelMeter : FrameworkElement
         nameof(IsLive), typeof(bool), typeof(LevelMeter),
         new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    private static readonly Brush Track = Freeze(new SolidColorBrush(Color.FromRgb(0x2A, 0x2F, 0x3A)));
+    private const double SegmentWidth = 3;
+    private const double SegmentGap = 2;
+
+    private static readonly Brush Track = Freeze(new SolidColorBrush(Color.FromRgb(0x25, 0x2A, 0x36)));
     private static readonly Brush Fill = Freeze(new LinearGradientBrush(
         new GradientStopCollection
         {
-            new(Color.FromRgb(0x2E, 0xCC, 0x71), 0.0),
-            new(Color.FromRgb(0x2E, 0xCC, 0x71), 0.70),
-            new(Color.FromRgb(0xF5, 0xB9, 0x42), 0.85),
-            new(Color.FromRgb(0xFF, 0x5C, 0x5C), 1.0),
+            new(Color.FromRgb(0x3D, 0xDC, 0x84), 0.0),
+            new(Color.FromRgb(0x3D, 0xDC, 0x84), 0.68),
+            new(Color.FromRgb(0xF5, 0xC0, 0x4E), 0.84),
+            new(Color.FromRgb(0xFF, 0x6B, 0x6B), 1.0),
         },
         new Point(0, 0), new Point(1, 0))
     { MappingMode = BrushMappingMode.RelativeToBoundingBox });
-    private static readonly Brush DimFill = Freeze(new SolidColorBrush(Color.FromRgb(0x55, 0x5D, 0x6B)));
-    private static readonly Pen Tick = Freeze(new Pen(new SolidColorBrush(Color.FromArgb(0x50, 0x14, 0x16, 0x1B)), 1));
+    private static readonly Brush DimFill = Freeze(new SolidColorBrush(Color.FromRgb(0x5F, 0x68, 0x78)));
+
+    // One opaque segment followed by a transparent gap, tiled across the meter: gives the LED-segment look with a
+    // single opacity mask instead of one draw call per segment.
+    private static readonly Brush SegmentMask = Freeze(new DrawingBrush(
+        new GeometryDrawing(Brushes.Black, null, new RectangleGeometry(new Rect(0, 0, SegmentWidth, 1))))
+    {
+        TileMode = TileMode.Tile,
+        Viewport = new Rect(0, 0, SegmentWidth + SegmentGap, 1),
+        ViewportUnits = BrushMappingMode.Absolute,
+        Viewbox = new Rect(0, 0, SegmentWidth + SegmentGap, 1),
+        ViewboxUnits = BrushMappingMode.Absolute,
+        Stretch = Stretch.Fill,
+    });
 
     public LevelMeter()
     {
         Height = 8;
+        UseLayoutRounding = true;
         SnapsToDevicePixels = true;
     }
 
@@ -57,25 +73,23 @@ public sealed class LevelMeter : FrameworkElement
         var dc = drawingContext;
         double w = ActualWidth, h = ActualHeight;
         if (w <= 0 || h <= 0) return;
-        double radius = h / 2;
         var rect = new Rect(0, 0, w, h);
-        dc.DrawRoundedRectangle(Track, null, rect, radius, radius);
+
+        dc.PushOpacityMask(SegmentMask);
+        dc.DrawRectangle(Track, null, rect);
 
         double level = Math.Clamp(Level, 0, 1);
         if (level > 0.001)
         {
-            // Clip the full-width gradient so colours stay anchored to dB positions.
-            dc.PushClip(new RectangleGeometry(new Rect(0, 0, w * level, h), radius, radius));
-            dc.DrawRoundedRectangle(IsLive ? Fill : DimFill, null, rect, radius, radius);
+            // Light whole segments only, and clip the full-width gradient so colours stay anchored to dB positions.
+            double step = SegmentWidth + SegmentGap;
+            double lit = Math.Min(w, Math.Ceiling(w * level / step) * step);
+            dc.PushClip(new RectangleGeometry(new Rect(0, 0, lit, h)));
+            dc.DrawRectangle(IsLive ? Fill : DimFill, null, rect);
             dc.Pop();
         }
 
-        // Ticks every 10 dB on a 60 dB scale.
-        for (int i = 1; i < 6; i++)
-        {
-            double x = Math.Round(w * i / 6) + 0.5;
-            dc.DrawLine(Tick, new Point(x, 1), new Point(x, h - 1));
-        }
+        dc.Pop();
     }
 
     private static T Freeze<T>(T f) where T : Freezable

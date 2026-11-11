@@ -79,7 +79,7 @@ public partial class MainWindow : Window
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         var helper = new WindowInteropHelper(this);
-        WindowStyling.ApplyDarkChrome(helper.Handle, 0x14, 0x16, 0x1B);
+        WindowStyling.ApplyDarkChrome(helper.Handle, 0x0F, 0x11, 0x15);
 
         var source = HwndSource.FromHwnd(helper.Handle)!;
         _hotkey = new GlobalHotkey(source);

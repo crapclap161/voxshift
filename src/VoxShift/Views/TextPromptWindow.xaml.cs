@@ -13,7 +13,7 @@ public partial class TextPromptWindow : Window
         Title = title;
         LabelText.Text = label;
         Input.Text = initialText;
-        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x14, 0x16, 0x1B);
+        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x0F, 0x11, 0x15);
         Loaded += (_, _) =>
         {
             Input.Focus();

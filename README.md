@@ -62,13 +62,13 @@ WPF UI with sample devices and sounds.</sub></p>
 | **2** | Download **`VoxShift-v…-win-x64-portable.exe`** from the **[latest release](https://github.com/crapclap161/voxshift/releases/latest)** and run it. It's portable: no installer, no .NET, nothing to extract. (A ZIP with docs is available too.) |
 | **3** | Choose your **microphone** and the **application** to share (start it first, then press ⟳ or F5), and set the volumes. |
 | **4** | In VRChat: **Settings → Audio & Voice → Microphone → `CABLE Output (VB-Audio Virtual Cable)`**. You only do this once. |
-| **5** | Press **🎤 MICROPHONE** (Ctrl+1) to talk and **🎵 APPLICATION AUDIO** (Ctrl+2) to play music. Want to talk over the music? Turn on **Talk over music** (Ctrl+T). |
-| **6** | Drag audio files onto the **SOUNDBOARD** on the right and click a button to play it into VRChat. Your mic mutes itself while it plays. |
+| **5** | Press **🎤 Microphone** (Ctrl+1) to talk and **🎵 Application** (Ctrl+2) to play music. Want to talk over the music? Turn on **Talk over music** (Ctrl+T). |
+| **6** | Drag audio files onto the **Soundboard** on the right and click a button to play it into VRChat. Your mic mutes itself while it plays. |
 | **7** | Wearing your headset? Click **VR mode** for big, simple controls in your VR desktop overlay. |
 
 > [!TIP]
 > Turn **off VRChat's Noise Suppression** while playing music, because it treats music as noise.
-> If **LIMIT** lights up next to the *To VRChat* meter, lower a volume a little.
+> If **LIMIT** lights up next to the *Output* meter, lower a volume a little.
 
 > [!NOTE]
 > `VoxShift.exe` isn't code-signed yet, so SmartScreen may show *“Windows protected your PC”*. Choose
@@ -76,23 +76,25 @@ WPF UI with sample devices and sounds.</sub></p>
 
 ## 🖥️ The interface
 
-<p align="center"><img src="docs/screenshots/v005-main-ui.png" width="520" alt="Redesigned VoxShift main window in application mode with Talk over music on"></p>
-<p align="center"><sub>Application audio mode with <b>Talk over music</b> on: VRChat hears Spotify and your voice. The status
-chips show what is <i>actually</i> transmitted right now.</sub></p>
+<p align="center"><img src="docs/screenshots/main-ui.png" width="540" alt="VoxShift main window in application mode with Talk over music on: live status, source selector and mixer"></p>
+<p align="center"><sub>Application mode with <b>Talk over music</b> on: VRChat hears Spotify and your voice. The status
+tiles show what is <i>actually</i> transmitted right now.</sub></p>
 
-From top to bottom:
+The window was redesigned in v0.0.7 as an audio control dashboard. Everything you use while playing sits at the top and
+fits without scrolling; set-up and rarely used options are tucked into two collapsible sections.
 
-1. **Status**: what VRChat hears right now in one sentence (*“VRChat hears Spotify and your microphone.”*), plus four
-   large chips: **Microphone** (LIVE / MUTED / OFF), **Talk-over**, **Sounds** and **VRChat**
-   (ONLINE / OFFLINE), and the *To VRChat* level meter. The chips always show the *effective* state, not just your settings.
-2. **Audio source**: two big buttons, **MICROPHONE** and **APPLICATION AUDIO**.
-3. **Audio mixing**: the **Talk over music** and **Auto-mute mic during soundboard** switches, and the soundboard
-   volume.
-4. **Microphone** and **Application audio** cards with device pickers, 0–200 % volume sliders and live meters.
-5. **Virtual microphone**: VB-CABLE status and setup help.
-6. **Interface & options**: VR Controller Mode, soundboard dock visible / expanded, always on top, tray and hotkey.
-
-The **Show soundboard** and **VR mode** buttons in the title area are always visible.
+1. **Header**: the **Soundboard** switch (lit while the dock is shown) and **VR mode**. Always visible.
+2. **Live status**: what VRChat hears right now in one sentence (*“VRChat hears Spotify and your microphone.”*), four
+   tiles – **Mic** (LIVE / MUTED / OFF), **App audio**, **Sounds** and **VRChat** (ONLINE / OFFLINE) – and the
+   segmented **Output** level meter. The tiles always show the *effective* state, not just your settings. Anything
+   that needs attention (missing virtual cable, warnings) appears directly below.
+3. **Audio source**: one segmented switch, **Microphone** or **Application**.
+4. **Mixer**: one strip each for **Microphone**, **Application** and **Soundboard** with a 0–200 % slider, its value
+   and a live meter, followed by the **Talk over music** and **Auto-mute mic during soundboard** switches.
+5. **Sources & devices**: microphone, application to capture, VRChat output (virtual cable) with their status and the
+   setup links.
+6. **Preferences** (collapsed by default): VR Controller Mode, soundboard dock, always on top, tray, close button
+   behaviour and the global hotkey.
 
 | Option | What it does | Default |
 |---|---|---|
@@ -124,8 +126,8 @@ extra clicks.
   sound carry on.
 - **You still hear your sounds.** Headphone monitoring (*Hear sounds myself*) is not affected.
 
-**Toggle it** with **Auto-mute mic during soundboard** in the *Audio mixing* card, with **Auto-mute mic on sounds** at
-the bottom of the soundboard dock, with **AUTO-MUTE MIC ON SOUNDS** in VR Controller Mode, or from the tray menu. It is
+**Toggle it** with **Auto-mute mic during soundboard** in the *Mixer* card, with **Auto-mute mic on sounds** at
+the bottom of the soundboard dock, with **Auto-mute mic on sounds** in VR Controller Mode, or from the tray menu. It is
 **on by default**. Turn it off if you want to talk over your sounds.
 
 <a id="talk-over-music"></a>
@@ -134,8 +136,8 @@ the bottom of the soundboard dock, with **AUTO-MUTE MIC ON SOUNDS** in VR Contro
 By default VoxShift is a clean switch: application mode sends **only** the music. Turn on **Talk over music** to DJ,
 play Spotify for your friends or stream music while you speak:
 
-1. Select the music application (e.g. Spotify) and press **APPLICATION AUDIO**.
-2. Turn on **Talk over music** (Ctrl+T, the *Audio mixing* card, VR Controller Mode or the tray menu).
+1. Select the music application (e.g. Spotify) and press **Application**.
+2. Turn on **Talk over music** (Ctrl+T, the *Mixer* card, VR Controller Mode or the tray menu).
 3. Talk normally. VRChat hears the music and your voice together.
 
 Turn it **off** again to go back to music only. Your microphone then never leaks into application mode.
@@ -143,7 +145,7 @@ Turn it **off** again to go back to music only. Your microphone then never leaks
 - **Volumes stay independent.** The microphone slider sets your voice, the application slider sets the music
   (0–200 % each), and the soundboard has its own slider. Lower the music a bit so your voice stays clear.
 - **Safe mixing.** Voice, music and sounds are summed once and pass through VoxShift's −1 dBFS peak limiter, so even
-  everything at 200 % never clips harshly. The *To VRChat* meter shows the final mix.
+  everything at 200 % never clips harshly. The *Output* meter shows the final mix.
 - **Microphone mode is unaffected.** It still sends only your voice; application audio never leaks into it.
 - **Smooth switching.** With Talk over music on, switching from microphone to application mode keeps your voice
   continuously on air while the music fades in.
@@ -164,7 +166,7 @@ Turn it **off** again to go back to music only. Your microphone then never leaks
 | 🎵 Application | **on** | yes | **on** | application + soundboard (mic muted) |
 | 🎵 Application | **on** | yes | off | application + microphone + soundboard |
 
-<p align="center"><img src="docs/screenshots/v005-audio-mixing.png" width="520" alt="Audio mixing card with Talk over music on, Auto-mute on and the microphone muted while a sound plays"></p>
+<p align="center"><img src="docs/screenshots/audio-mixing.png" width="540" alt="Live status and mixer with Talk over music on, Auto-mute on and the microphone muted while a sound plays"></p>
 <p align="center"><sub>Talk over music and Auto-mute both on, while a sound plays: Spotify continues, the microphone chip
 shows <b>MUTED</b>.</sub></p>
 
@@ -172,12 +174,12 @@ shows <b>MUTED</b>.</sub></p>
 ## 🎛️ Dockable Soundboard
 
 The soundboard plays **sound files from your PC into VRChat** with one click: air horns, applause, stream alerts, short
-jingles. In v0.0.5 it lives in its **own window, docked to the right side of VoxShift**, so it no longer takes space
+jingles. It lives in its **own window, docked to the right side of VoxShift**, so it no longer takes space
 away from the audio controls.
 
-<p align="center"><img src="docs/screenshots/v005-soundboard-docked-expanded.png" width="860" alt="Main window with the soundboard dock expanded on its right: collection selector, eight sound buttons, volume and monitoring controls"></p>
-<p align="center"><sub>The expanded dock: collection selector, Add sounds / Edit / STOP ALL, large sound buttons (two
-playing, with progress bars), VRChat volume, <i>Hear sounds myself</i> and the auto-mute switch.</sub></p>
+<p align="center"><img src="docs/screenshots/soundboard-docked-expanded.png" width="860" alt="Main window with the soundboard dock expanded on its right: collection selector, eight sound buttons, volume and monitoring controls"></p>
+<p align="center"><sub>The expanded dock: collection selector, Add sounds / Edit / Stop all, large sound pads (two
+playing, with progress bars), the <i>To VRChat</i> and <i>Headphones</i> volumes, <i>Hear sounds myself</i> and the auto-mute switch.</sub></p>
 
 ### Expand, collapse and move it
 
@@ -185,7 +187,7 @@ playing, with progress bars), VRChat volume, <i>Hear sounds myself</i> and the a
   with a large **▶** handle, the number of sounds playing, and a **Stop all** button while sounds play. It never
   covers the main window.
 - **Expand** by clicking the **▶** handle or anywhere on the strip.
-- **Show or hide** the dock with **Show soundboard / Hide soundboard** in the title area (Ctrl+B) or the *Soundboard
+- **Show or hide** the dock with the **Soundboard** switch in the header (Ctrl+B) or the *Soundboard
   dock* switch. Closing the dock never closes VoxShift.
 - **It follows the main window**: drag VoxShift (or the dock's header) and both move together; resize the main window
   and the dock keeps the same height. Drag the dock's outer edge to make it wider or narrower.
@@ -196,7 +198,7 @@ playing, with progress bars), VRChat volume, <i>Hear sounds myself</i> and the a
 - It minimizes, restores and hides to the tray together with the main window, and follows *Always on top*.
 - The expanded/collapsed state, visibility and width are remembered.
 
-<p align="center"><img src="docs/screenshots/v005-soundboard-docked-collapsed.png" width="680" alt="Main window with the soundboard collapsed to a narrow strip with an expand handle on its right"></p>
+<p align="center"><img src="docs/screenshots/soundboard-docked-collapsed.png" width="680" alt="Main window with the soundboard collapsed to a narrow strip with an expand handle on its right"></p>
 <p align="center"><sub>Collapsed: a slim strip with a large expand handle. Drop files onto it to add sounds.</sub></p>
 
 ### Add sounds with drag & drop
@@ -230,18 +232,18 @@ button (or right-click it), choose **Relink file…**, and point it at the new l
 |---|---|
 | Play a sound | Click its button. Several sounds can play at the same time; a playing button lights up with a progress bar. |
 | Stop one sound | Click the playing button again |
-| Stop everything | **STOP ALL** (also on the collapsed strip and in VR Controller Mode) |
+| Stop everything | **Stop all** (also on the collapsed strip and in VR Controller Mode) |
 | Rename, relink, remove, play overlapping | Turn on **Edit** and click a sound, or right-click it. No right-click is needed, which helps with VR controllers. |
 | Switch collection | The collection selector at the top of the dock (**＋** new, **✎** rename, **🗑** delete; files are never deleted) |
-| VRChat volume | *VRChat volume* slider (0–200 %), independent of the microphone and application volume |
-| Hear sounds yourself | **Hear sounds myself** (on by default) also plays every sound in your headphones, with its own *My volume* slider |
+| VRChat volume | *To VRChat* slider (0–200 %), independent of the microphone and application volume |
+| Hear sounds yourself | **Hear sounds myself** (on by default) also plays every sound in your headphones, with its own *Headphones* slider |
 
 ### Hear the sounds yourself
 
 | Sound goes to | Volume control | Contains |
 |---|---|---|
-| VRChat (virtual microphone) | *VRChat volume* | the transmitted sources (see the table above) **+** soundboard |
-| Your headphones | *My volume* | soundboard only |
+| VRChat (virtual microphone) | *To VRChat* | the transmitted sources (see the table above) **+** soundboard |
+| Your headphones | *Headphones* | soundboard only |
 
 - Only the soundboard is played back to you. Your own microphone is never echoed into your headphones (also not with
   Talk over music), and the captured application plays there as usual anyway.
@@ -260,17 +262,17 @@ Pointing at small buttons with a VR controller through a desktop overlay is hard
 full window and the dock with **one simplified window that contains only the most important controls**, all of them
 large:
 
-<p align="center"><img src="docs/screenshots/v005-vr-controller-mode.png" width="760" alt="VR Controller Mode window with large mode buttons, Talk over music and Auto-mute toggles, status tiles, Stop all and a grid of large sound buttons"></p>
+<p align="center"><img src="docs/screenshots/vr-controller-mode.png" width="760" alt="VR Controller Mode window with large mode buttons, Talk over music and Auto-mute toggles, status tiles, Stop all and a grid of large sound buttons"></p>
 
 - **Status tiles**: what is transmitted, whether your microphone is LIVE or MUTED, Talk over music and Auto-mute ON/OFF,
   whether the VRChat output is connected and how many sounds are playing.
-- **MICROPHONE** and **APPLICATION AUDIO** as huge buttons, the active one lit up.
-- **TALK OVER MUSIC** and **AUTO-MUTE MIC ON SOUNDS** as large ON/OFF switches.
+- **Microphone** and **Application audio** as huge buttons, the active one lit up.
+- **Talk over music** and **Auto-mute mic on sounds** as large ON/OFF switches.
 - **Your soundboard**: big collection buttons, a scrollable grid of large sound buttons with playing feedback, **▲ / ▼**
-  page buttons (no fiddly scrolling) and **STOP ALL**.
-- **BACK TO FULL INTERFACE** in the top right corner (or Esc) returns to the normal window and its docked soundboard.
+  page buttons (no fiddly scrolling) and **Stop all**.
+- **Full interface** in the top right corner (or Esc) returns to the normal window and its docked soundboard.
 
-**Activate it** with the **VR mode** button in the title area, the *VR Controller Mode* switch, or the tray menu.
+**Activate it** with the **VR mode** button in the header, the *VR Controller Mode* switch in *Preferences*, or the tray menu.
 VoxShift remembers the mode and the window's size and position, and starts in it next time.
 
 **Using it with a headset on:** open your VR desktop overlay (SteamVR's desktop view, Virtual Desktop, OVR Toolkit,
@@ -406,18 +408,22 @@ flowchart LR
 
 | Action | How |
 |---|---|
-| Talk | **🎤 MICROPHONE**, `Ctrl+1`, the tray menu, or the global hotkey |
-| Play an app into VRChat | Select the app, then **🎵 APPLICATION AUDIO**, `Ctrl+2`, the tray menu, or the global hotkey |
-| Talk while the music plays | Turn on **Talk over music** (`Ctrl+T`, *Audio mixing* card, VR mode or tray) |
+| Talk | **🎤 Microphone**, `Ctrl+1`, the tray menu, or the global hotkey |
+| Play an app into VRChat | Select the app, then **🎵 Application**, `Ctrl+2`, the tray menu, or the global hotkey |
+| Talk while the music plays | Turn on **Talk over music** (`Ctrl+T`, *Mixer* card, VR mode or tray) |
 | Add a sound effect | Drag an MP3 or WAV from Explorer onto the soundboard dock, or use **Add sounds** |
 | Play it into VRChat | Click its button. Your mic mutes itself while it plays (if *Auto-mute* is on) |
-| Stop all sounds | **STOP ALL** |
-| Show / hide the soundboard | **Show soundboard** in the title area or `Ctrl+B`; collapse it with **◀** |
-| Use it with a headset on | **VR mode** → large controls; **BACK TO FULL INTERFACE** to return |
+| Stop all sounds | **Stop all** |
+| Show / hide the soundboard | **Soundboard** in the header or `Ctrl+B`; collapse it with **◀** |
+| Use it with a headset on | **VR mode** → large controls; **Full interface** to return |
 | Refresh the app list | ⟳ or `F5` |
 | Run in the background | Click **X** → **Minimize to Tray**, or set *When clicking the X button* to *Minimize to system tray* |
 | Quit completely | Click **X** → **Quit VoxShift**, or tray icon → **Exit VoxShift** |
 | Start hidden from a script or shortcut | `VoxShift.exe --minimized` |
+
+<p align="center"><img src="docs/screenshots/close-dialog.png" width="400" alt="Close dialog: Minimize to Tray, Quit VoxShift, Cancel and Remember my choice"></p>
+<p align="center"><sub>Clicking <b>X</b> asks what you want. Tick <i>Remember my choice</i>, or set it under
+<i>Preferences → When clicking the X button</i>.</sub></p>
 
 Settings are stored in `%APPDATA%\VoxShift\settings.json` and logs in `%LOCALAPPDATA%\VoxShift\logs`
 (open them with *Open log folder*). To uninstall, delete the program folder and those two directories.
@@ -457,9 +463,9 @@ use it), *Auto-mute* starts **on**, *Talk over music* starts **off**, and the fu
 | My voice doesn't come back after a sound | Check the *Microphone* chip: *OFF* in application mode means Talk over music is off. Auto-mute always releases when the last sound ends, also after Stop all. |
 | I can't hear anything on my PC anymore | Your Windows default output is CABLE Input. Set your headphones as default (VoxShift warns about this). |
 | Others hear the music twice or with an echo | The music app outputs directly to *CABLE Input* (*Settings → Sound → Volume mixer*). Reset it to your headphones, and disable *“Listen to this device”* on CABLE Output. |
-| The soundboard dock is gone | Click **Show soundboard** (Ctrl+B) in the title area. If it is a slim strip, click its **▶** handle. |
+| The soundboard dock is gone | Click **Soundboard** (Ctrl+B) in the header. If it is a slim strip, click its **▶** handle. |
 | Where did VoxShift go after I clicked X? | It is in the system tray (*Minimize to Tray*) and keeps routing audio. Tray icon → **Show VoxShift**. Choose *Quit VoxShift* (or tray → **Exit VoxShift**) to close it completely. |
-| I'm stuck in VR Controller Mode / can't find the window | Click **BACK TO FULL INTERFACE**, press Esc, or use the tray icon → **Show full interface**. |
+| I'm stuck in VR Controller Mode / can't find the window | Click **Full interface**, press Esc, or use the tray icon → **Show full interface**. |
 | The dock sits on top of the main window | The screen is too narrow (or the window is maximized). Restore the window or collapse the dock. |
 | The app shows *“is not running”* | Start the program and press ⟳. It's also picked up automatically once it starts. |
 | The application meter stays empty | The app isn't playing, plays DRM-protected content, or the sound comes from another process (e.g. the game instead of its launcher). |
@@ -469,7 +475,7 @@ use it), *Auto-mute* starts **on**, *Talk over music* starts **off**, and the fu
 | Music sounds choppy in VRChat | Turn off VRChat's Noise Suppression. Lower a volume if **LIMIT** is lit. |
 | The hotkey doesn't register | Another program uses it. Click the hotkey box and press a different combination. |
 | A soundboard button shows ⚠ | The file was moved, renamed or deleted. **Edit** → click it → **Relink file…** |
-| I don't hear soundboard sounds myself | Enable **Hear sounds myself** and raise *My volume*. Make sure your headphones are the Windows default playback device (not CABLE Input). |
+| I don't hear soundboard sounds myself | Enable **Hear sounds myself** and raise *Headphones*. Make sure your headphones are the Windows default playback device (not CABLE Input). |
 | *“Unsupported format”* when dropping | Convert the file to WAV, MP3, FLAC, M4A/AAC or WMA (OGG/Opus isn't supported). |
 | Anything else | Use **Open log folder** and check `VoxShift.log`, then [open an issue](https://github.com/crapclap161/voxshift/issues). |
 

@@ -11,7 +11,7 @@ public partial class SetupHelpWindow : Window
     public SetupHelpWindow()
     {
         InitializeComponent();
-        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x14, 0x16, 0x1B);
+        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x0F, 0x11, 0x15);
     }
 
     private void OnGetCable(object sender, RoutedEventArgs e) => Open("https://vb-audio.com/Cable/");

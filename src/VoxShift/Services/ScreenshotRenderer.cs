@@ -116,7 +116,7 @@ internal static class ScreenshotRenderer
             await Settle();
         }
 
-        // The three real windows of v0.0.5. Each is shown once (so templates and styles apply) and then rendered
+        // The three real windows. Each is shown once (so templates and styles apply) and then rendered
         // detached from its window, because a build machine's screen is smaller than the full layout.
         var mixingCard = window.FindName("MixingCard") as FrameworkElement;
         var statusCard = window.FindName("StatusCard") as FrameworkElement;
@@ -151,10 +151,10 @@ internal static class ScreenshotRenderer
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.31, 0.83, 0.82);
         await RenderFullHeight(main, Path.Combine(directory, "main-application.png"));
 
-        // 3) v0.0.5 main UI: application mode with Talk over music, voice and Spotify together.
+        // 3) Main UI: application mode with Talk over music, voice and Spotify together.
         vm.TalkOverMusic = true;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.72, 0.80, 0.84);
-        await RenderFullHeight(main, Path.Combine(raw, "v005-main-ui.png"));
+        await RenderFullHeight(main, Path.Combine(raw, "main-ui.png"));
 
         // 4) Audio mixing controls while a sound plays: Spotify continues, the microphone is auto-muted.
         vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
@@ -166,7 +166,7 @@ internal static class ScreenshotRenderer
             Layout(main, double.PositiveInfinity);
             await Settle(600);
             Layout(main, double.PositiveInfinity);
-            SaveRegion(main, [statusCard, mixingCard], Path.Combine(raw, "v005-audio-mixing.png"), padding: 12);
+            SaveRegion(main, [statusCard, mixingCard], Path.Combine(raw, "audio-mixing.png"), padding: 12);
         }
 
         // 5) Main window + docked soundboard, expanded, two sounds playing (microphone mode, mic auto-muted).
@@ -175,13 +175,13 @@ internal static class ScreenshotRenderer
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.86);
         vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
         vm.RefreshEffectiveState();
-        await RenderDocked(main, dock, DockWidth, Path.Combine(raw, "v005-soundboard-docked-expanded.png"));
+        await RenderDocked(main, dock, DockWidth, Path.Combine(raw, "soundboard-docked-expanded.png"));
 
         // 6) Collapsed dock: the slim strip with its expand handle.
         vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
         vm.RefreshEffectiveState();
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.71);
-        await RenderDocked(main, dock, SoundboardDockController.CollapsedWidth, Path.Combine(raw, "v005-soundboard-docked-collapsed.png"));
+        await RenderDocked(main, dock, SoundboardDockController.CollapsedWidth, Path.Combine(raw, "soundboard-docked-collapsed.png"));
 
         // 7) Drag & drop target state of the dock, exactly as shown while files are dragged over it.
         vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: true, dropHint: "Drop to add sounds (3 items)");
@@ -204,7 +204,7 @@ internal static class ScreenshotRenderer
         Layout(vr, VrHeight);
         await Settle(700);
         Layout(vr, VrHeight);
-        Save(vr, Path.Combine(raw, "v005-vr-controller-mode.png"));
+        Save(vr, Path.Combine(raw, "vr-controller-mode.png"));
 
         vrWindow.AllowClose = true;
         vrWindow.Close();
@@ -219,7 +219,7 @@ internal static class ScreenshotRenderer
         var helpRoot = (FrameworkElement)help.Content;
         help.Content = null;
         foreach (var sv in FindAll<ScrollViewer>(helpRoot)) sv.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
-        var helpHost = new Border { Child = helpRoot, Width = 520, Background = help.Background };
+        var helpHost = new Border { Child = helpRoot, Width = 540, Background = help.Background };
         helpHost.Resources.MergedDictionaries.Add(help.Resources);
         System.Windows.Documents.TextElement.SetForeground(helpHost, help.Foreground);
         System.Windows.Documents.TextElement.SetFontFamily(helpHost, help.FontFamily);
@@ -228,9 +228,20 @@ internal static class ScreenshotRenderer
         Layout(helpHost);
         Save(helpHost, Path.Combine(directory, "setup-help.png"));
         help.Close();
+
+        // 10) Close confirmation dialog (shown when the X button is clicked with "Always ask").
+        var closeDialog = new CloseConfirmationWindow { WindowStartupLocation = WindowStartupLocation.Manual, Left = 600, Top = 20 };
+        closeDialog.Show();
+        await Settle(500);
+        var closeHost = Detach(closeDialog, vm, 460);
+        Layout(closeHost);
+        await Settle(300);
+        Layout(closeHost);
+        Save(closeHost, Path.Combine(raw, "close-dialog.png"));
+        closeDialog.Close();
     }
 
-    private const double MainWidth = 540;
+    private const double MainWidth = 560;
     private const double DockWidth = 420;
     private const double DockedHeight = 1000;
     private const double VrWidth = 820;

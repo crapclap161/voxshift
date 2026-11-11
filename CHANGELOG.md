@@ -6,6 +6,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-11-11
+
+**UI/UX Overhaul.** A redesigned interface for every window, built on one shared design system. No audio, routing or
+settings behaviour changed; existing settings load unchanged.
+
+### Changed
+- **New design system** (`Themes/Theme.xaml`): a deeper layered dark palette (inset wells, window, cards, control
+  surfaces), refined blue / violet / teal accents for microphone / application / soundboard, display typography for
+  titles and read-outs, 16 px cards, hairline borders, consistent focus rings and subtle hover / press transitions.
+  All windows and dialogs use the same resources.
+- **Main window rebuilt as a dashboard.** Header with a **Soundboard** switch (lit while the dock is shown) and
+  **VR mode**; a **live status** card (what VRChat hears, tiles for Mic / App audio / Sounds / VRChat, output meter);
+  a segmented **audio source** switch; a **Mixer** card with one strip per signal (slider, value, live meter, ON AIR /
+  AUTO-MUTED / PLAYING badges) and the two mixing switches. Device pickers moved into a collapsible **Sources &
+  devices** section and rarely used options into **Preferences** (collapsed by default), so everything needed while
+  playing fits without scrolling.
+- **Setup and warning banners** now appear directly under the live status instead of further down the page.
+- **Level meters** are segmented (LED-style) and keep their dB-anchored green / amber / red zones.
+- **Soundboard dock:** new header, sound pads with a play badge, a clear playing state (teal wash, ring, filled
+  badge, progress bar), labelled *To VRChat* / *Headphones* volumes, a restyled Edit toggle and Stop all button, a
+  visible width grip, and redesigned empty, collapsed and drag-and-drop states.
+- **VR Controller Mode:** restyled with the same system – recessed source switch with large lit buttons, clearer
+  status tiles, larger collection chips, calmer header with a **Full interface** button.
+- **Dialogs:** close confirmation (icons, clearer hierarchy), setup help (numbered step cards) and the rename prompt
+  use the shared buttons and typography.
+- Main window default size 560 × 920, minimum 480 × 520.
+- Screenshots are regenerated from the new UI and no longer carry a version prefix in their file names; a screenshot
+  of the close dialog was added.
+
 ## [0.0.6] - 2026-11-11
 
 **Window Closing & System Tray Fix.** Clicking the X button no longer produces error dialogs; it asks what to do.
@@ -208,7 +237,8 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
 - New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
   portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
-[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.6...HEAD
+[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.7...HEAD
+[0.0.7]: https://github.com/crapclap161/voxshift/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/crapclap161/voxshift/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/crapclap161/voxshift/compare/v0.0.4...v0.0.5
 [0.0.4]: https://github.com/crapclap161/voxshift/compare/v0.0.3...v0.0.4

@@ -30,7 +30,7 @@ public partial class SoundboardDockWindow : Window
         SourceInitialized += (_, _) =>
         {
             var hwnd = new WindowInteropHelper(this).Handle;
-            WindowStyling.ApplyDarkChrome(hwnd, 0x14, 0x16, 0x1B);
+            WindowStyling.ApplyDarkChrome(hwnd, 0x0F, 0x11, 0x15);
             NativeWindowMethods.MakeToolWindow(hwnd);
         };
         Closing += OnClosing;

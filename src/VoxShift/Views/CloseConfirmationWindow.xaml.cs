@@ -19,7 +19,7 @@ public partial class CloseConfirmationWindow : Window
     public CloseConfirmationWindow()
     {
         InitializeComponent();
-        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x14, 0x16, 0x1B);
+        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x0F, 0x11, 0x15);
         Loaded += (_, _) => MinimizeButton.Focus();
         Closed += (_, _) => System.Threading.Interlocked.Decrement(ref _open);
         System.Threading.Interlocked.Increment(ref _open);

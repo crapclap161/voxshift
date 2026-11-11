@@ -29,7 +29,7 @@ def with_shadow(img, pad=48, blur=26, opacity=150):
     return canvas
 
 
-def gradient(size, top=(17, 20, 32), bottom=(46, 24, 78)):
+def gradient(size, top=(17, 20, 32), bottom=(34, 26, 74)):
     w, h = size
     g = Image.new("RGBA", size)
     d = ImageDraw.Draw(g)
@@ -38,8 +38,8 @@ def gradient(size, top=(17, 20, 32), bottom=(46, 24, 78)):
         d.line([(0, y), (w, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip(top, bottom)) + (255,))
     glow = Image.new("RGBA", size, (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    gd.ellipse([w * 0.05, h * 0.15, w * 0.55, h * 0.85], fill=(79, 140, 255, 70))
-    gd.ellipse([w * 0.45, h * 0.15, w * 0.95, h * 0.85], fill=(34, 193, 168, 60))
+    gd.ellipse([w * 0.05, h * 0.15, w * 0.55, h * 0.85], fill=(91, 155, 255, 70))
+    gd.ellipse([w * 0.45, h * 0.15, w * 0.95, h * 0.85], fill=(43, 212, 189, 60))
     g.alpha_composite(glow.filter(ImageFilter.GaussianBlur(120)))
     return g
 
@@ -52,8 +52,8 @@ def frame_raw(name, radius=28):
     return f
 
 
-FRAMED = ["v005-main-ui", "v005-soundboard-docked-expanded", "v005-soundboard-docked-collapsed",
-          "v005-vr-controller-mode", "v005-audio-mixing", "soundboard-drag-drop"]
+FRAMED = ["main-ui", "soundboard-docked-expanded", "soundboard-docked-collapsed",
+          "vr-controller-mode", "audio-mixing", "soundboard-drag-drop", "close-dialog"]
 REQUIRED = ["main-microphone", "main-application", "application-picker", "setup-help"] + [f"raw/{n}" for n in FRAMED]
 OUTPUTS = FRAMED + ["hero", "application-picker-framed", "setup-help-framed"]
 
@@ -84,10 +84,10 @@ def verify(names):
 def main():
     verify(REQUIRED)
     for name in FRAMED:
-        frame_raw(name, 20 if name in ("soundboard-drag-drop", "v005-audio-mixing") else 28)
+        frame_raw(name, 20 if name in ("soundboard-drag-drop", "audio-mixing", "close-dialog") else 28)
 
     # Hero: the main window with the soundboard docked on its right, as the user sees it.
-    pair = with_shadow(rounded(Image.open(SHOTS / "raw" / "v005-soundboard-docked-expanded.png"), 28))
+    pair = with_shadow(rounded(Image.open(SHOTS / "raw" / "soundboard-docked-expanded.png"), 28))
     hero = gradient((pair.width + 80, pair.height + 80))
     hero.alpha_composite(pair, (40, 40))
     hero = hero.resize((hero.width // 2, hero.height // 2), Image.LANCZOS)

@@ -25,7 +25,7 @@
 
         <DataTemplate x:Key="DockSoundTileTemplate" DataType="{x:Type vm:SoundButtonViewModel}">
             <Button Style="{StaticResource BigSoundTile}" Click="OnSoundTileClick" ToolTip="{Binding ToolTip}"
-                    Height="72" Margin="0,0,10,10" AutomationProperties.Name="{Binding Name}"
+                    Height="76" Margin="0,0,10,10" AutomationProperties.Name="{Binding Name}"
                     AutomationProperties.HelpText="Play or stop this sound">
                 <Button.ContextMenu>
                     <ContextMenu>
@@ -62,27 +62,29 @@
                 </Grid.RowDefinitions>
 
                 <!-- Header (drag it to move VoxShift together with the dock) -->
-                <Grid Grid.Row="0" DataContext="{Binding Soundboard}" Margin="14,10,12,6" Background="Transparent" MouseLeftButtonDown="OnHeaderMouseDown" Cursor="SizeAll"
+                <Grid Grid.Row="0" DataContext="{Binding Soundboard}" Margin="16,14,14,8" Background="Transparent" MouseLeftButtonDown="OnHeaderMouseDown" Cursor="SizeAll"
                       ToolTip="Drag to move VoxShift and the soundboard together">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="20" Margin="2,0,10,0" Foreground="{StaticResource SoundAccentBrush}" />
+                    <Border Style="{StaticResource IconChip}" Width="40" Height="40" CornerRadius="12" Background="{StaticResource SoundTintBrush}" Margin="0,0,12,0">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="18" HorizontalAlignment="Center" Foreground="{StaticResource SoundAccentBrush}" />
+                    </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="SOUNDBOARD" FontSize="16" FontWeight="Bold" />
-                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="Soundboard" FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Summary}" FontSize="11.5" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
-                    <Button Grid.Column="2" Style="{StaticResource SquareIconButton}" MinWidth="52" MinHeight="48" Cursor="Hand"
+                    <Button Grid.Column="2" Style="{StaticResource SquareIconButton}" MinWidth="48" MinHeight="44" Cursor="Hand"
                             Command="{Binding CollapseCommand}" AutomationProperties.Name="Collapse the soundboard"
                             ToolTip="Collapse the soundboard into a slim strip">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE76B;" FontSize="16" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE76B;" FontSize="14" />
                     </Button>
                 </Grid>
 
                 <!-- Collection selector + management -->
-                <Grid Grid.Row="1" DataContext="{Binding Soundboard}" Margin="14,4,14,0">
+                <Grid Grid.Row="1" DataContext="{Binding Soundboard}" Margin="16,4,16,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -94,20 +96,20 @@
                               IsEnabled="{Binding HasBoards}" ToolTip="Switch soundboard collection" />
                     <Button Grid.Column="1" Margin="8,0,0,0" Style="{StaticResource SquareIconButton}" MinWidth="48" MinHeight="48" Command="{Binding NewBoardCommand}"
                             ToolTip="New soundboard collection" AutomationProperties.Name="New soundboard">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="15" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="14" />
                     </Button>
                     <Button Grid.Column="2" Margin="6,0,0,0" Style="{StaticResource SquareIconButton}" MinWidth="48" MinHeight="48" Command="{Binding RenameBoardCommand}"
                             ToolTip="Rename soundboard collection" AutomationProperties.Name="Rename soundboard">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="15" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="14" />
                     </Button>
                     <Button Grid.Column="3" Margin="6,0,0,0" Style="{StaticResource SquareIconButton}" MinWidth="48" MinHeight="48" Command="{Binding DeleteBoardCommand}"
                             ToolTip="Delete soundboard collection (your audio files are kept)" AutomationProperties.Name="Delete soundboard">
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="15" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE74D;" FontSize="14" />
                     </Button>
                 </Grid>
 
                 <!-- Main actions -->
-                <Grid Grid.Row="2" DataContext="{Binding Soundboard}" Margin="14,10,14,10">
+                <Grid Grid.Row="2" DataContext="{Binding Soundboard}" Margin="16,10,16,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="8" />
@@ -118,36 +120,40 @@
                     <Button Style="{StaticResource BigButton}" Command="{Binding AddFilesCommand}" AutomationProperties.Name="Add sounds"
                             ToolTip="Add audio files. They stay where they are; VoxShift only links to them.">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="14" Margin="0,0,8,0" Foreground="{StaticResource SoundAccentBrush}" />
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="13" Margin="0,0,8,0" Foreground="{StaticResource SoundAccentBrush}" />
                             <TextBlock Text="Add sounds" />
                         </StackPanel>
                     </Button>
-                    <ToggleButton Grid.Column="2" MinWidth="76" MinHeight="52" Cursor="Hand" IsChecked="{Binding IsEditMode, Mode=TwoWay}"
-                                  AutomationProperties.Name="Edit sounds" FontSize="14" FontWeight="SemiBold"
+                    <ToggleButton Grid.Column="2" Style="{StaticResource ToolToggle}" Tag="{StaticResource WaitBrush}" MinWidth="80" MinHeight="48"
+                                  IsChecked="{Binding IsEditMode, Mode=TwoWay}" AutomationProperties.Name="Edit sounds"
                                   ToolTip="Edit mode: click a sound to rename, relink or remove it (no right-click needed)">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Margin="0,0,6,0" />
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE70F;" FontSize="13" Margin="0,0,7,0" />
                             <TextBlock Text="Edit" />
                         </StackPanel>
                     </ToggleButton>
                     <Button Grid.Column="4" Style="{StaticResource DangerButton}" Command="{Binding StopAllCommand}" AutomationProperties.Name="Stop all sounds"
                             ToolTip="Stop every sound that is playing">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE71A;" FontSize="13" Margin="0,0,8,0" />
-                            <TextBlock Text="STOP ALL" FontWeight="Bold" />
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE71A;" FontSize="12" Margin="0,0,8,0" />
+                            <TextBlock Text="Stop all" />
                         </StackPanel>
                     </Button>
                 </Grid>
 
                 <!-- Sounds -->
-                <Grid Grid.Row="3" DataContext="{Binding Soundboard}" Margin="14,0,4,0">
+                <Grid Grid.Row="3" DataContext="{Binding Soundboard}" Margin="16,0,6,0">
                     <!-- Empty state / drop zone -->
                     <Grid Margin="0,0,10,10" Visibility="{Binding IsEmpty, Converter={StaticResource BoolVis}}">
-                        <Rectangle RadiusX="14" RadiusY="14" Stroke="#FF3B4252" StrokeThickness="1.5" StrokeDashArray="4 3" Fill="#0DFFFFFF" />
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="20">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="30" HorizontalAlignment="Center"
-                                       Foreground="{StaticResource SoundAccentBrush}" />
-                            <TextBlock Text="Drop audio files here" FontWeight="SemiBold" FontSize="16" HorizontalAlignment="Center" Margin="0,10,0,4" />
+                        <Rectangle RadiusX="16" RadiusY="16" Stroke="{StaticResource HoverBorderBrush}" StrokeThickness="1.5" StrokeDashArray="4 3"
+                                   Fill="{StaticResource InsetBrush}" />
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                            <Border Width="64" Height="64" CornerRadius="20" Background="{StaticResource SoundTintBrush}" HorizontalAlignment="Center">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="26" HorizontalAlignment="Center"
+                                           Foreground="{StaticResource SoundAccentBrush}" />
+                            </Border>
+                            <TextBlock Text="Drop audio files here" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="17"
+                                       HorizontalAlignment="Center" Margin="0,14,0,4" />
                             <TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" TextAlignment="Center"
                                        Text="{Binding Source={x:Static vm:SoundboardViewModel.SupportedFormatsText}, StringFormat='or use Add sounds · {0}'}" />
                         </StackPanel>
@@ -166,7 +172,7 @@
                 </Grid>
 
                 <!-- Footer: volumes, monitoring, auto-mute, feedback -->
-                <Border Grid.Row="4" Margin="14,4,14,14" Style="{StaticResource Card}" Padding="14,10,14,12">
+                <Border Grid.Row="4" Margin="16,4,16,16" Style="{StaticResource Card}" Padding="14,12,14,14">
                     <StackPanel>
                         <StackPanel DataContext="{Binding Soundboard}">
                         <Grid>
@@ -175,36 +181,42 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="VRChat volume" FontSize="12.5" Width="104" VerticalAlignment="Center" />
+                            <StackPanel Width="104" VerticalAlignment="Center">
+                                <TextBlock Text="To VRChat" FontSize="13" FontWeight="SemiBold" />
+                                <TextBlock Text="What others hear" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+                            </StackPanel>
                             <Slider Grid.Column="1" Style="{StaticResource BigSlider}" Foreground="{StaticResource SoundAccentBrush}"
                                     Value="{Binding Volume, Mode=TwoWay}" AutomationProperties.Name="Soundboard volume"
                                     ToolTip="Soundboard volume sent to VRChat (0–200 %), independent of microphone and application volume" />
-                            <TextBlock Grid.Column="2" Text="{Binding Volume, StringFormat={}{0} %}" FontWeight="SemiBold" MinWidth="46" TextAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="{StaticResource SoundAccentBrush}" Margin="8,0,0,0" />
+                            <TextBlock Grid.Column="2" Style="{StaticResource ValueText}" Text="{Binding Volume, StringFormat={}{0} %}"
+                                       Foreground="{StaticResource SoundAccentBrush}" Margin="6,0,0,0" />
                         </Grid>
-                        <ToggleButton Margin="0,8,0,0" Style="{StaticResource OptionToggle}" MinHeight="60" Tag="{StaticResource SoundAccentBrush}"
-                                      IsChecked="{Binding MonitorEnabled, Mode=TwoWay}" AutomationProperties.Name="Hear sounds myself"
-                                      ToolTip="Also play soundboard sounds on your Windows default playback device (your headphones)">
-                            <StackPanel>
-                                <TextBlock Text="Hear sounds myself" FontSize="14" FontWeight="SemiBold" />
-                                <TextBlock Style="{StaticResource Caption}" FontSize="11.5" Text="Plays sounds in your headphones too" />
-                            </StackPanel>
-                        </ToggleButton>
-                        <Grid Margin="0,6,0,0">
+                        <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="My volume" FontSize="12.5" Width="104" VerticalAlignment="Center" />
-                            <Slider Grid.Column="1" Style="{StaticResource BigSlider}" Foreground="{StaticResource SoundAccentBrush}"
+                            <StackPanel Width="104" VerticalAlignment="Center">
+                                <TextBlock Text="Headphones" FontSize="13" FontWeight="SemiBold" />
+                                <TextBlock Text="What you hear" FontSize="11" Foreground="{StaticResource MutedTextBrush}" />
+                            </StackPanel>
+                            <Slider Grid.Column="1" Style="{StaticResource BigSlider}" Foreground="{StaticResource SecondaryTextBrush}"
                                     Value="{Binding MonitorVolume, Mode=TwoWay}" IsEnabled="{Binding MonitorEnabled}"
                                     AutomationProperties.Name="Monitor volume"
                                     ToolTip="How loud you hear the sounds yourself (does not change what VRChat hears)" />
-                            <TextBlock Grid.Column="2" Text="{Binding MonitorVolume, StringFormat={}{0} %}" FontWeight="SemiBold" MinWidth="46" TextAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" Margin="8,0,0,0" />
+                            <TextBlock Grid.Column="2" Style="{StaticResource ValueText}" Text="{Binding MonitorVolume, StringFormat={}{0} %}"
+                                       Foreground="{StaticResource SecondaryTextBrush}" Margin="6,0,0,0" />
                         </Grid>
-                        <TextBlock Margin="0,4,0,0" FontSize="11.5" TextWrapping="Wrap" Text="{Binding MonitorStatus}"
+                        <ToggleButton Margin="0,8,0,0" Style="{StaticResource OptionToggle}" MinHeight="58" Tag="{StaticResource SoundAccentBrush}"
+                                      IsChecked="{Binding MonitorEnabled, Mode=TwoWay}" AutomationProperties.Name="Hear sounds myself"
+                                      ToolTip="Also play soundboard sounds on your Windows default playback device (your headphones)">
+                            <StackPanel>
+                                <TextBlock Text="Hear sounds myself" Style="{StaticResource OptionTitle}" FontSize="13.5" />
+                                <TextBlock Style="{StaticResource OptionDescription}" FontSize="11.5" Text="Plays sounds in your headphones too" />
+                            </StackPanel>
+                        </ToggleButton>
+                        <TextBlock Margin="2,6,0,0" FontSize="11.5" TextWrapping="Wrap" Text="{Binding MonitorStatus}"
                                    Visibility="{Binding MonitorStatus, Converter={StaticResource NotEmptyVis}}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -218,34 +230,37 @@
                             </TextBlock.Style>
                         </TextBlock>
                         </StackPanel>
-                        <ToggleButton Margin="0,8,0,0" Style="{StaticResource OptionToggle}" MinHeight="60" Tag="{StaticResource SoundAccentBrush}"
+                        <ToggleButton Margin="0,8,0,0" Style="{StaticResource OptionToggle}" MinHeight="58" Tag="{StaticResource SoundAccentBrush}"
                                       IsChecked="{Binding AutoMuteMicrophone, Mode=TwoWay}" AutomationProperties.Name="Auto-mute microphone during Soundboard playback"
                                       ToolTip="Mute your microphone (inside VoxShift only) while a sound plays; it comes back when the last sound ends">
                             <StackPanel>
-                                <TextBlock Text="Auto-mute mic on sounds" FontSize="14" FontWeight="SemiBold" />
-                                <TextBlock Style="{StaticResource Caption}" FontSize="11.5" Text="{Binding MicrophoneStateText, StringFormat='Microphone: {0}'}" />
+                                <TextBlock Text="Auto-mute mic on sounds" Style="{StaticResource OptionTitle}" FontSize="13.5" />
+                                <TextBlock Style="{StaticResource OptionDescription}" FontSize="11.5" Text="{Binding MicrophoneStateText, StringFormat='Microphone: {0}'}" />
                             </StackPanel>
                         </ToggleButton>
 
                         <!-- Inline feedback -->
-                        <DockPanel Margin="0,8,0,0" DataContext="{Binding Soundboard}" Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}">
-                            <Button DockPanel.Dock="Right" Style="{StaticResource SquareIconButton}" MinWidth="40" MinHeight="40" Margin="8,0,0,0" VerticalAlignment="Top"
-                                    Command="{Binding DismissMessageCommand}" ToolTip="Dismiss" AutomationProperties.Name="Dismiss message">
-                                <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" />
-                            </Button>
-                            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding MessageIsError}" Value="True">
-                                                <Setter Property="Foreground" Value="{StaticResource WaitBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DockPanel>
+                        <Border Margin="0,10,0,0" Style="{StaticResource Inset}" CornerRadius="12" Padding="12,8,8,8" DataContext="{Binding Soundboard}"
+                                Visibility="{Binding Message, Converter={StaticResource NotEmptyVis}}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource SquareIconButton}" MinWidth="40" MinHeight="40" Margin="8,0,0,0" VerticalAlignment="Top"
+                                        Command="{Binding DismissMessageCommand}" ToolTip="Dismiss" AutomationProperties.Name="Dismiss message">
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="11" />
+                                </Button>
+                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding MessageIsError}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource WaitBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DockPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 
@@ -254,7 +269,16 @@
                        ToolTip="Drag to change the soundboard width">
                     <Thumb.Template>
                         <ControlTemplate TargetType="Thumb">
-                            <Border Background="Transparent" />
+                            <Grid Background="Transparent">
+                                <Border x:Name="Grip" Width="3" Height="44" CornerRadius="1.5" Background="{StaticResource HoverBorderBrush}"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.6" />
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Grip" Property="Background" Value="{StaticResource SoundAccentBrush}" />
+                                    <Setter TargetName="Grip" Property="Opacity" Value="1" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Thumb.Template>
                 </Thumb>
@@ -268,58 +292,66 @@
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <Button Grid.Row="0" Margin="6,10,6,0" Style="{StaticResource BigButton}" MinHeight="64" Padding="0"
+                <Button Grid.Row="0" Margin="8,14,8,0" Style="{StaticResource BigButton}" MinHeight="60" Padding="0"
                         Command="{Binding ExpandCommand}" AutomationProperties.Name="Expand the soundboard"
                         ToolTip="Open the soundboard (you can also drop audio files here)">
-                    <TextBlock Style="{StaticResource Icon}" Text="&#xE76C;" FontSize="20" />
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE76C;" FontSize="16" />
                 </Button>
-                <Button Grid.Row="1" Margin="6,8,6,8" Command="{Binding ExpandCommand}" Cursor="Hand" AutomationProperties.Name="Soundboard (click to expand)"
+                <Button Grid.Row="1" Margin="8,8,8,10" Command="{Binding ExpandCommand}" Cursor="Hand" AutomationProperties.Name="Soundboard (click to expand)"
                         ToolTip="Soundboard: click to expand, or drop audio files here">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Bd" CornerRadius="12" Background="#FF1A1D23" BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">
+                            <Border x:Name="Bd" CornerRadius="14" Background="{StaticResource InsetBrush}" BorderBrush="{StaticResource InsetBorderBrush}" BorderThickness="1">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
                                     <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource SoundAccentBrush}" />
-                                    <Setter TargetName="Bd" Property="Background" Value="#FF20242C" />
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource SurfaceBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource FocusRingBrush}" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Button.Template>
                     <StackPanel>
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="20" HorizontalAlignment="Center" Foreground="{StaticResource SoundAccentBrush}" />
-                        <TextBlock Text="SOUNDBOARD" FontSize="14" FontWeight="Bold" Margin="0,14,0,0" HorizontalAlignment="Center" Foreground="{StaticResource PrimaryTextBrush}">
+                        <Border Width="40" Height="40" CornerRadius="12" Background="{StaticResource SoundTintBrush}" HorizontalAlignment="Center">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="18" HorizontalAlignment="Center" Foreground="{StaticResource SoundAccentBrush}" />
+                        </Border>
+                        <TextBlock Text="SOUNDBOARD" FontSize="12.5" FontWeight="Bold" Margin="0,16,0,0" HorizontalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}">
                             <TextBlock.LayoutTransform>
                                 <RotateTransform Angle="90" />
                             </TextBlock.LayoutTransform>
                         </TextBlock>
-                        <Border Margin="0,14,0,0" Style="{StaticResource Pill}" Background="#3322C1A8" HorizontalAlignment="Center"
+                        <Border Margin="0,16,0,0" Style="{StaticResource Pill}" Background="{StaticResource SoundTintBrush}" HorizontalAlignment="Center"
                                 Visibility="{Binding AnyPlaying, Converter={StaticResource BoolVis}}">
                             <TextBlock Text="{Binding PlayingCount}" FontWeight="Bold" Foreground="{StaticResource SoundAccentBrush}" />
                         </Border>
                     </StackPanel>
                 </Button>
-                <Button Grid.Row="2" Margin="6,0,6,10" Style="{StaticResource DangerButton}" MinHeight="64" Padding="0"
+                <Button Grid.Row="2" Margin="8,0,8,14" Style="{StaticResource DangerButton}" MinHeight="60" Padding="0"
                         Command="{Binding StopAllCommand}" AutomationProperties.Name="Stop all sounds" ToolTip="Stop all sounds"
                         Visibility="{Binding AnyPlaying, Converter={StaticResource BoolVis}}">
-                    <TextBlock Style="{StaticResource Icon}" Text="&#xE71A;" FontSize="18" />
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE71A;" FontSize="16" />
                 </Button>
             </Grid>
 
             <!-- Drag & drop highlight (expanded and collapsed) -->
-            <Grid DataContext="{Binding Soundboard}" Visibility="{Binding IsDragOver, Converter={StaticResource BoolVis}}" IsHitTestVisible="False" Margin="6">
-                <Rectangle RadiusX="14" RadiusY="14" Stroke="{StaticResource SoundAccentBrush}" StrokeThickness="2.5" StrokeDashArray="5 3">
+            <Grid DataContext="{Binding Soundboard}" Visibility="{Binding IsDragOver, Converter={StaticResource BoolVis}}" IsHitTestVisible="False" Margin="8">
+                <Rectangle RadiusX="16" RadiusY="16" Stroke="{StaticResource SoundAccentBrush}" StrokeThickness="2" StrokeDashArray="5 3">
                     <Rectangle.Fill>
-                        <SolidColorBrush Color="#FF14161B" Opacity="0.95" />
+                        <SolidColorBrush Color="#FF0F1115" Opacity="0.95" />
                     </Rectangle.Fill>
                 </Rectangle>
+                <Rectangle RadiusX="16" RadiusY="16" Fill="{StaticResource SoundTintBrush}" Opacity="0.5" />
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12">
-                    <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="30" HorizontalAlignment="Center"
-                               Foreground="{StaticResource SoundAccentBrush}" />
-                    <TextBlock Text="{Binding DropHint}" FontWeight="SemiBold" FontSize="16" HorizontalAlignment="Center" TextAlignment="Center"
-                               TextWrapping="Wrap" Margin="0,10,0,4" />
+                    <Border Width="64" Height="64" CornerRadius="20" Background="{StaticResource SoundTintBrush}" HorizontalAlignment="Center">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="26" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource SoundAccentBrush}" />
+                    </Border>
+                    <TextBlock Text="{Binding DropHint}" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="17" HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" Margin="0,14,0,4" />
                     <TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" TextAlignment="Center"
                                Text="Files stay where they are. VoxShift only links to them." />
                 </StackPanel>

@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="VoxShift"
-        Width="540" Height="900" MinWidth="460" MinHeight="480"
+        Width="560" Height="920" MinWidth="480" MinHeight="520"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource WindowBackgroundBrush}"
         Foreground="{StaticResource PrimaryTextBrush}"
@@ -52,11 +52,6 @@
             </StackPanel>
         </DataTemplate>
 
-        <Style x:Key="OnAirBadge" TargetType="Border" BasedOn="{StaticResource Pill}">
-            <Setter Property="Background" Value="#332ECC71" />
-            <Setter Property="Margin" Value="8,0,0,0" />
-        </Style>
-
         <Style x:Key="BigCombo" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
             <Setter Property="MinHeight" Value="48" />
             <Setter Property="FontSize" Value="14" />
@@ -64,12 +59,12 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="OptionTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-        </Style>
-        <Style x:Key="OptionDescription" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
-            <Setter Property="Margin" Value="0,2,0,0" />
+        <!-- Status line under a picker: coloured state dot + the engine's message. -->
+        <Style x:Key="StateDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Height" Value="8" />
+            <Setter Property="Margin" Value="2,5,8,0" />
+            <Setter Property="VerticalAlignment" Value="Top" />
         </Style>
 
         <Style x:Key="MicChipValue" TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
@@ -91,41 +86,36 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- ===== Brand bar with the interface switches (always visible) ===== -->
-        <Grid Grid.Row="0" Margin="18,12,16,4">
+        <!-- ===== Header: brand, version, soundboard and VR mode (always visible) ===== -->
+        <Grid Grid.Row="0" Margin="18,14,16,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Image Source="pack://application:,,,/Assets/app.ico" Width="26" Height="26" Margin="0,0,10,0"
-                   RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="VoxShift logo" />
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="VoxShift" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Border Style="{StaticResource Pill}" Background="#FF262A33" Margin="10,0,0,0">
-                    <TextBlock Text="{Binding VersionText}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
-                </Border>
+            <Border Width="40" Height="40" CornerRadius="12" Margin="0,0,12,0" Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">
+                <Image Source="pack://application:,,,/Assets/app.ico" Width="24" Height="24"
+                       RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="VoxShift logo" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="VoxShift" FontFamily="{StaticResource DisplayFont}" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource Pill}" Background="{StaticResource SurfaceBrush}" Margin="9,2,0,0">
+                        <TextBlock Text="{Binding VersionText}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" />
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="VRChat audio control" FontSize="11.5" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
-            <Button Grid.Column="2" Style="{StaticResource BigButton}" MinHeight="44" Padding="14,0" Margin="0,0,8,0"
-                    Command="{Binding ToggleSoundboardDockCommand}" AutomationProperties.Name="Show or hide the soundboard"
-                    ToolTip="Show or hide the soundboard next to this window (Ctrl+B)">
+            <ToggleButton Grid.Column="2" Style="{StaticResource ToolToggle}" Margin="0,0,8,0"
+                          IsChecked="{Binding SoundboardDockVisible, Mode=TwoWay}" AutomationProperties.Name="Show or hide the soundboard"
+                          ToolTip="Show or hide the soundboard next to this window (Ctrl+B)">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="16" Margin="0,0,8,0" Foreground="{StaticResource SoundAccentBrush}" />
-                    <TextBlock VerticalAlignment="Center">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Text" Value="Show soundboard" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SoundboardDockVisible}" Value="True">
-                                        <Setter Property="Text" Value="Hide soundboard" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
+                    <TextBlock Text="Soundboard" VerticalAlignment="Center" />
                 </StackPanel>
-            </Button>
+            </ToggleButton>
             <Button Grid.Column="3" Style="{StaticResource BigButton}" MinHeight="44" Padding="14,0"
                     Command="{Binding EnterVrControllerModeCommand}" AutomationProperties.Name="Open VR Controller Mode"
                     ToolTip="VR Controller Mode: one simplified window with big buttons, easy to use with VR controllers through a desktop overlay">
@@ -136,60 +126,77 @@
             </Button>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="16,8,16,14"
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="16,6,16,14"
                       PanningMode="VerticalOnly">
             <StackPanel>
-                <!-- ===== Transmission status ===== -->
-                <Border x:Name="StatusCard" Style="{StaticResource Card}" Padding="14,14,14,12">
+                <!-- ===== Live status: what VRChat hears right now ===== -->
+                <Border x:Name="StatusCard" Style="{StaticResource Card}" Padding="16,16,16,14">
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Ellipse x:Name="OnAirDot" Width="16" Height="16" Margin="2,0,14,0" VerticalAlignment="Center">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{StaticResource IdleBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsTransmitting}" Value="True">
-                                                <Setter Property="Fill" Value="{StaticResource OkBrush}" />
-                                                <Setter Property="Effect">
-                                                    <Setter.Value>
-                                                        <DropShadowEffect Color="#FF2ECC71" BlurRadius="12" ShadowDepth="0" Opacity="0.9" />
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="{Binding TransmitTitle}" FontSize="19" FontWeight="Bold" TextTrimming="CharacterEllipsis"
+                            <Grid Width="46" Height="46" Margin="0,0,14,0" VerticalAlignment="Center">
+                                <Ellipse StrokeThickness="1.5">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{StaticResource SurfaceBrush}" />
+                                            <Setter Property="Stroke" Value="{StaticResource CardBorderBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTransmitting}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource OkTintBrush}" />
+                                                    <Setter Property="Stroke" Value="#803DDC84" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <Ellipse Width="14" Height="14">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{StaticResource IdleBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsTransmitting}" Value="True">
+                                                    <Setter Property="Fill" Value="{StaticResource OkBrush}" />
+                                                    <Setter Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="#FF3DDC84" BlurRadius="10" ShadowDepth="0" Opacity="0.8" />
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                            </Grid>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="VRCHAT HEARS" Style="{StaticResource SectionLabel}" Margin="0,0,0,1" />
+                                <TextBlock Text="{Binding TransmitTitle}" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"
                                            AutomationProperties.LiveSetting="Assertive" AutomationProperties.Name="{Binding TransmitTitle}" />
-                                <TextBlock Text="{Binding TransmitDetail}" Style="{StaticResource Caption}" FontSize="13" Margin="0,3,0,0" />
+                                <TextBlock Text="{Binding TransmitDetail}" Style="{StaticResource Caption}" FontSize="12.5" Margin="0,2,0,0" />
                             </StackPanel>
                         </Grid>
 
-                        <!-- Effective state at a glance -->
+                        <!-- Effective state of every signal at a glance -->
                         <UniformGrid Columns="4" Margin="-4,12,-4,0">
                             <Border Style="{StaticResource StatusChip}" ToolTip="Whether your voice reaches VRChat right now">
                                 <StackPanel>
-                                    <TextBlock Text="MICROPHONE" Style="{StaticResource ChipLabel}" />
+                                    <TextBlock Text="MIC" Style="{StaticResource ChipLabel}" />
                                     <TextBlock Text="{Binding MicrophoneStateText}" Style="{StaticResource MicChipValue}" ToolTip="{Binding MicrophoneStateText}" />
                                 </StackPanel>
                             </Border>
-                            <Border Style="{StaticResource StatusChip}" ToolTip="Talk over music: send your voice together with the application audio">
+                            <Border Style="{StaticResource StatusChip}" ToolTip="Whether the selected application's audio reaches VRChat right now">
                                 <StackPanel>
-                                    <TextBlock Text="TALK-OVER" Style="{StaticResource ChipLabel}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="APP AUDIO" Style="{StaticResource ChipLabel}" />
                                     <TextBlock>
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
                                                 <Setter Property="Text" Value="OFF" />
                                                 <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding TalkOverMusic}" Value="True">
-                                                        <Setter Property="Text" Value="ON" />
+                                                    <DataTrigger Binding="{Binding IsApplicationLive}" Value="True">
+                                                        <Setter Property="Text" Value="LIVE" />
                                                         <Setter Property="Foreground" Value="{StaticResource AppAccentBrush}" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
@@ -217,7 +224,7 @@
                             </Border>
                             <Border Style="{StaticResource StatusChip}" ToolTip="{Binding Status.OutputMessage}">
                                 <StackPanel>
-                                    <TextBlock Text="VRCHAT" Style="{StaticResource ChipLabel}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="VRCHAT" Style="{StaticResource ChipLabel}" />
                                     <TextBlock Text="{Binding OutputStateText}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
@@ -234,59 +241,200 @@
                             </Border>
                         </UniformGrid>
 
-                        <Grid Margin="0,10,0,0" ToolTip="Level sent to VRChat (after volume and limiter, including the soundboard)">
+                        <!-- Output level -->
+                        <Border Style="{StaticResource Inset}" CornerRadius="12" Padding="12,10" Margin="0,8,0,0"
+                                ToolTip="Level sent to VRChat (after volume and limiter, including the soundboard)">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="OUTPUT" Style="{StaticResource ChipLabel}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                <c:LevelMeter Grid.Column="1" Height="12" Level="{Binding OutputLevel}" VerticalAlignment="Center" />
+                                <Border Grid.Column="2" Style="{StaticResource Badge}" Background="{StaticResource WaitTintBrush}" Margin="10,0,0,0"
+                                        ToolTip="The limiter is preventing clipping – consider lowering a volume."
+                                        Visibility="{Binding IsLimiting, Converter={StaticResource BoolVis}}">
+                                    <TextBlock Text="LIMIT" Style="{StaticResource BadgeText}" Foreground="{StaticResource WaitBrush}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== Things that need attention sit right under the status ===== -->
+                <Border Style="{StaticResource Banner}" Background="{StaticResource MicTintBrush}" BorderBrush="#665B9BFF"
+                        Visibility="{Binding ShowCableSetup, Converter={StaticResource BoolVis}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Open setup guide" Margin="12,0,0,0" MinHeight="44" VerticalAlignment="Center"
+                                Command="{Binding OpenSetupGuideCommand}" Style="{StaticResource AccentBigButton}" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" FontSize="16" Foreground="{StaticResource MicAccentBrush}" Margin="0,2,10,0" VerticalAlignment="Top" />
+                        <TextBlock TextWrapping="Wrap" FontSize="12.5" VerticalAlignment="Center"
+                                   Text="VoxShift needs the free VB-CABLE driver to create the microphone VRChat listens to. It takes about two minutes to set up." />
+                    </DockPanel>
+                </Border>
+                <Border Style="{StaticResource Banner}" Background="{StaticResource WaitTintBrush}" BorderBrush="#66F5C04E"
+                        Visibility="{Binding Status.Warning, Converter={StaticResource NotEmptyVis}}">
+                    <DockPanel>
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE7BA;" FontSize="16" Foreground="{StaticResource WaitBrush}" Margin="0,1,10,0" VerticalAlignment="Top" />
+                        <TextBlock Text="{Binding Status.Warning}" TextWrapping="Wrap" FontSize="12.5" />
+                    </DockPanel>
+                </Border>
+                <Border Style="{StaticResource Banner}" Background="{StaticResource ErrorTintBrush}" BorderBrush="#66FF6B6B"
+                        Visibility="{Binding Notice, Converter={StaticResource NotEmptyVis}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource SquareIconButton}" Command="{Binding DismissNoticeCommand}" ToolTip="Dismiss"
+                                AutomationProperties.Name="Dismiss message">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="12" />
+                        </Button>
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE783;" FontSize="16" Foreground="{StaticResource ErrorBrush}" Margin="0,1,10,0" VerticalAlignment="Top" />
+                        <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" FontSize="12.5" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Border>
+
+                <!-- ===== Audio source: the main switch ===== -->
+                <TextBlock Text="AUDIO SOURCE" Style="{StaticResource SectionLabel}" Margin="4,2,0,8" />
+                <Border Style="{StaticResource Inset}" CornerRadius="16" Padding="5" Margin="0,0,0,14">
+                    <Grid Height="78">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="5" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <RadioButton x:Name="MicModeButton" Style="{StaticResource ModeButton}" GroupName="Mode"
+                                     Tag="{StaticResource MicActiveBrush}" IsChecked="{Binding IsMicrophoneMode, Mode=TwoWay}"
+                                     AutomationProperties.Name="Microphone mode"
+                                     ToolTip="Send your microphone to VRChat. Application audio is not sent (Ctrl+1)">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE720;" FontSize="26" Margin="0,0,12,0" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Microphone" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="16" />
+                                    <TextBlock Text="Your voice only" FontSize="11.5" Opacity="0.8" Margin="0,1,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="AppModeButton" Grid.Column="2" Style="{StaticResource ModeButton}" GroupName="Mode"
+                                     Tag="{StaticResource AppActiveBrush}" IsChecked="{Binding IsApplicationMode, Mode=TwoWay}"
+                                     AutomationProperties.Name="Application audio mode"
+                                     ToolTip="Send the selected application's audio to VRChat (Ctrl+2). Your microphone is added only with Talk over music.">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8D6;" FontSize="26" Margin="0,0,12,0" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Application" FontFamily="{StaticResource DisplayFont}" FontWeight="SemiBold" FontSize="16" />
+                                    <TextBlock Text="Music from an app" FontSize="11.5" Opacity="0.8" Margin="0,1,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </RadioButton>
+                    </Grid>
+                </Border>
+
+                <!-- ===== Mixer: one strip per signal, then the mixing behaviour ===== -->
+                <Border x:Name="MixingCard" Style="{StaticResource Card}">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,14">
+                            <Border DockPanel.Dock="Left" Style="{StaticResource IconChip}" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE9E9;" FontSize="16" HorizontalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Mixer" Style="{StaticResource HeaderTitle}" />
+                                <TextBlock Text="Independent volumes · a limiter protects VRChat from clipping" Style="{StaticResource HeaderCaption}" />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <!-- Microphone strip -->
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="To VRChat" Style="{StaticResource Caption}" Margin="0,0,10,0" VerticalAlignment="Center" />
-                            <c:LevelMeter Grid.Column="1" Level="{Binding OutputLevel}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="2" Text="LIMIT" FontSize="10" FontWeight="Bold" Margin="8,0,0,0"
-                                       Foreground="{StaticResource WaitBrush}" VerticalAlignment="Center"
-                                       ToolTip="The limiter is preventing clipping – consider lowering a volume."
-                                       Visibility="{Binding IsLimiting, Converter={StaticResource BoolVis}}" />
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Border Grid.RowSpan="2" Style="{StaticResource IconChip}" Background="{StaticResource MicTintBrush}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE720;" FontSize="16" HorizontalAlignment="Center" Foreground="{StaticResource MicAccentBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Microphone" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Border Style="{StaticResource Badge}" Visibility="{Binding IsMicrophoneLive, Converter={StaticResource BoolVis}}">
+                                    <TextBlock Text="ON AIR" Style="{StaticResource BadgeText}" Foreground="{StaticResource OkBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource Badge}" Background="{StaticResource WaitTintBrush}"
+                                        ToolTip="Muted while a soundboard sound plays; it comes back by itself"
+                                        Visibility="{Binding IsMicrophoneMutedBySoundboard, Converter={StaticResource BoolVis}}">
+                                    <TextBlock Text="AUTO-MUTED" Style="{StaticResource BadgeText}" Foreground="{StaticResource WaitBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Style="{StaticResource ValueText}" Text="{Binding MicrophoneVolume, StringFormat={}{0} %}"
+                                       Foreground="{StaticResource MicAccentBrush}" />
+                            <Slider Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource BigSlider}" Foreground="{StaticResource MicAccentBrush}"
+                                    Value="{Binding MicrophoneVolume, Mode=TwoWay}"
+                                    AutomationProperties.Name="Microphone volume" ToolTip="Microphone level sent to VRChat (0–200 %)" />
+                            <c:LevelMeter Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Level="{Binding MicrophoneLevel}" IsLive="{Binding IsMicrophoneLive}" />
                         </Grid>
-                    </StackPanel>
-                </Border>
+                        <Border Style="{StaticResource Divider}" />
 
-                <!-- ===== Audio source ===== -->
-                <TextBlock Text="AUDIO SOURCE" Style="{StaticResource SectionLabel}" Margin="2,4,0,8" />
-                <Grid Margin="0,0,0,12" Height="100">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <RadioButton x:Name="MicModeButton" Style="{StaticResource ModeButton}" GroupName="Mode"
-                                 Tag="{StaticResource MicActiveBrush}" IsChecked="{Binding IsMicrophoneMode, Mode=TwoWay}"
-                                 AutomationProperties.Name="Microphone mode"
-                                 ToolTip="Send your microphone to VRChat. Application audio is not sent (Ctrl+1)">
-                        <StackPanel HorizontalAlignment="Center">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE720;" FontSize="28" HorizontalAlignment="Center" />
-                            <TextBlock Text="MICROPHONE" FontWeight="Bold" FontSize="15" Margin="0,8,0,0" HorizontalAlignment="Center" />
-                            <TextBlock Text="Your voice only" FontSize="11.5" Opacity="0.75" Margin="0,2,0,0" HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="AppModeButton" Grid.Column="2" Style="{StaticResource ModeButton}" GroupName="Mode"
-                                 Tag="{StaticResource AppActiveBrush}" IsChecked="{Binding IsApplicationMode, Mode=TwoWay}"
-                                 AutomationProperties.Name="Application audio mode"
-                                 ToolTip="Send the selected application's audio to VRChat (Ctrl+2). Your microphone is added only with Talk over music.">
-                        <StackPanel HorizontalAlignment="Center">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE8D6;" FontSize="28" HorizontalAlignment="Center" />
-                            <TextBlock Text="APPLICATION AUDIO" FontWeight="Bold" FontSize="15" Margin="0,8,0,0" HorizontalAlignment="Center" />
-                            <TextBlock Text="Music from an app" FontSize="11.5" Opacity="0.75" Margin="0,2,0,0" HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </RadioButton>
-                </Grid>
+                        <!-- Application strip -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Border Grid.RowSpan="2" Style="{StaticResource IconChip}" Background="{StaticResource AppTintBrush}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE8D6;" FontSize="16" HorizontalAlignment="Center" Foreground="{StaticResource AppAccentBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Application" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Border Style="{StaticResource Badge}" Visibility="{Binding IsApplicationLive, Converter={StaticResource BoolVis}}">
+                                    <TextBlock Text="ON AIR" Style="{StaticResource BadgeText}" Foreground="{StaticResource OkBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Style="{StaticResource ValueText}" Text="{Binding ApplicationVolume, StringFormat={}{0} %}"
+                                       Foreground="{StaticResource AppAccentBrush}" />
+                            <Slider Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource BigSlider}" Foreground="{StaticResource AppAccentBrush}"
+                                    Value="{Binding ApplicationVolume, Mode=TwoWay}"
+                                    AutomationProperties.Name="Application volume" ToolTip="Application level sent to VRChat (0–200 %). Does not change what you hear." />
+                            <c:LevelMeter Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Level="{Binding ApplicationLevel}" IsLive="{Binding IsApplicationLive}" />
+                        </Grid>
+                        <Border Style="{StaticResource Divider}" />
 
-                <!-- ===== Audio mixing ===== -->
-                <Border x:Name="MixingCard" Style="{StaticResource Card}">
-                    <StackPanel>
-                        <DockPanel Margin="0,0,0,10">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE9E9;" FontSize="15" Margin="0,0,10,0" Foreground="{StaticResource AppAccentBrush}" />
-                            <TextBlock Text="Audio mixing" Style="{StaticResource CardTitle}" FontSize="15" />
-                        </DockPanel>
+                        <!-- Soundboard strip -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Border Grid.RowSpan="2" Style="{StaticResource IconChip}" Background="{StaticResource SoundTintBrush}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="16" HorizontalAlignment="Center" Foreground="{StaticResource SoundAccentBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Soundboard" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Border Style="{StaticResource Badge}" Background="{StaticResource SoundTintBrush}"
+                                        Visibility="{Binding IsSoundboardPlaying, Converter={StaticResource BoolVis}}">
+                                    <TextBlock Text="PLAYING" Style="{StaticResource BadgeText}" Foreground="{StaticResource SoundAccentBrush}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Style="{StaticResource ValueText}" Text="{Binding Soundboard.Volume, StringFormat={}{0} %}"
+                                       Foreground="{StaticResource SoundAccentBrush}" />
+                            <Slider Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource BigSlider}" Foreground="{StaticResource SoundAccentBrush}"
+                                    Value="{Binding Soundboard.Volume, Mode=TwoWay}" AutomationProperties.Name="Soundboard volume"
+                                    ToolTip="How loud VRChat hears soundboard sounds (0–200 %)" />
+                        </Grid>
+                        <Border Style="{StaticResource Divider}" Margin="0,10,0,14" />
+
                         <ToggleButton Style="{StaticResource OptionToggle}" Tag="{StaticResource AppAccentBrush}" IsChecked="{Binding TalkOverMusic, Mode=TwoWay}"
                                       AutomationProperties.Name="Talk over music"
                                       ToolTip="On: in application mode VRChat hears the music and your voice together. Off: application mode sends the music only (Ctrl+T).">
@@ -296,7 +444,7 @@
                                            Text="In application mode, VRChat hears the music and your voice together." />
                             </StackPanel>
                         </ToggleButton>
-                        <ToggleButton Margin="0,10,0,0" Style="{StaticResource OptionToggle}" Tag="{StaticResource SoundAccentBrush}"
+                        <ToggleButton Margin="0,8,0,0" Style="{StaticResource OptionToggle}" Tag="{StaticResource SoundAccentBrush}"
                                       IsChecked="{Binding AutoMuteMicrophone, Mode=TwoWay}"
                                       AutomationProperties.Name="Auto-mute microphone during Soundboard playback"
                                       ToolTip="Mutes only your microphone inside VoxShift while a sound plays, and brings it back when the last sound ends. Windows and other apps are not affected.">
@@ -306,77 +454,35 @@
                                            Text="Your mic pauses while a sound plays and comes back by itself when it ends." />
                             </StackPanel>
                         </ToggleButton>
-
-                        <Grid Margin="0,12,0,0" DataContext="{Binding Soundboard}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="14" Margin="0,0,8,0" Foreground="{StaticResource SoundAccentBrush}" />
-                                <TextBlock Text="Soundboard volume" FontSize="12.5" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <Slider Grid.Column="1" Style="{StaticResource BigSlider}" Foreground="{StaticResource SoundAccentBrush}"
-                                    Value="{Binding Volume, Mode=TwoWay}" AutomationProperties.Name="Soundboard volume"
-                                    ToolTip="How loud VRChat hears soundboard sounds (0–200 %)" />
-                            <TextBlock Grid.Column="2" Text="{Binding Volume, StringFormat={}{0} %}" FontWeight="SemiBold" MinWidth="48" TextAlignment="Right"
-                                       Foreground="{StaticResource SoundAccentBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
-                        </Grid>
-                        <TextBlock Margin="0,6,0,0" Style="{StaticResource Caption}" FontSize="11.5" Foreground="{StaticResource MutedTextBrush}"
-                                   Text="Microphone, application and soundboard each keep their own volume. A limiter protects VRChat from clipping." />
                     </StackPanel>
                 </Border>
 
-                <!-- ===== Microphone card ===== -->
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
+                <!-- ===== Sources & devices ===== -->
+                <Expander Style="{StaticResource SectionExpander}" IsExpanded="True" AutomationProperties.Name="Sources and devices">
+                    <Expander.Header>
                         <DockPanel>
-                            <Ellipse Width="10" Height="10" Margin="0,0,10,0" VerticalAlignment="Center"
-                                     Fill="{Binding Status.MicrophoneState, Converter={StaticResource StateBrush}}" />
-                            <TextBlock Text="Microphone" Style="{StaticResource CardTitle}" FontSize="15" />
-                            <Border Style="{StaticResource OnAirBadge}" Visibility="{Binding IsMicrophoneLive, Converter={StaticResource BoolVis}}">
-                                <TextBlock Text="ON AIR" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
+                            <Border DockPanel.Dock="Left" Style="{StaticResource IconChip}" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE772;" FontSize="16" HorizontalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" />
                             </Border>
-                            <Border Style="{StaticResource OnAirBadge}" Background="#33F5B942"
-                                    Visibility="{Binding IsMicrophoneMutedBySoundboard, Converter={StaticResource BoolVis}}">
-                                <TextBlock Text="MUTED · SOUND PLAYING" FontSize="10" FontWeight="Bold" Foreground="{StaticResource WaitBrush}" />
-                            </Border>
-                            <TextBlock Text="{Binding MicrophoneVolume, StringFormat={}{0} %}" HorizontalAlignment="Right"
-                                       FontWeight="SemiBold" Foreground="{StaticResource MicAccentBrush}" VerticalAlignment="Center" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Sources &amp; devices" Style="{StaticResource HeaderTitle}" />
+                                <TextBlock Text="Microphone, application to capture and the VRChat output" Style="{StaticResource HeaderCaption}" />
+                            </StackPanel>
                         </DockPanel>
-                        <ComboBox Margin="0,10,0,0" Style="{StaticResource BigCombo}" ItemsSource="{Binding Microphones}"
+                    </Expander.Header>
+                    <StackPanel>
+                        <TextBlock Text="Microphone" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <ComboBox Style="{StaticResource BigCombo}" ItemsSource="{Binding Microphones}"
                                   SelectedItem="{Binding SelectedMicrophone}" ItemTemplate="{StaticResource DeviceItemTemplate}"
                                   AutomationProperties.Name="Microphone device" />
-                        <Grid Margin="0,6,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE767;" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,12,0" />
-                            <Slider Grid.Column="1" Style="{StaticResource BigSlider}" Foreground="{StaticResource MicAccentBrush}"
-                                    Value="{Binding MicrophoneVolume, Mode=TwoWay}"
-                                    AutomationProperties.Name="Microphone volume" ToolTip="Microphone level sent to VRChat (0–200 %)" />
-                        </Grid>
-                        <c:LevelMeter Margin="0,4,0,0" Level="{Binding MicrophoneLevel}" IsLive="{Binding IsMicrophoneLive}" />
-                        <TextBlock Margin="0,8,0,0" Style="{StaticResource Caption}" Text="{Binding Status.MicrophoneMessage}" />
-                    </StackPanel>
-                </Border>
-
-                <!-- ===== Application card ===== -->
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <DockPanel>
-                            <Ellipse Width="10" Height="10" Margin="0,0,10,0" VerticalAlignment="Center"
-                                     Fill="{Binding Status.ApplicationState, Converter={StaticResource StateBrush}}" />
-                            <TextBlock Text="Application audio" Style="{StaticResource CardTitle}" FontSize="15" />
-                            <Border Style="{StaticResource OnAirBadge}" Visibility="{Binding IsApplicationLive, Converter={StaticResource BoolVis}}">
-                                <TextBlock Text="ON AIR" FontSize="10" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
-                            </Border>
-                            <TextBlock Text="{Binding ApplicationVolume, StringFormat={}{0} %}" HorizontalAlignment="Right"
-                                       FontWeight="SemiBold" Foreground="{StaticResource AppAccentBrush}" VerticalAlignment="Center" />
+                        <DockPanel Margin="0,8,0,0">
+                            <Ellipse DockPanel.Dock="Left" Style="{StaticResource StateDot}" Fill="{Binding Status.MicrophoneState, Converter={StaticResource StateBrush}}" />
+                            <TextBlock Style="{StaticResource Caption}" Text="{Binding Status.MicrophoneMessage}" />
                         </DockPanel>
-                        <Grid Margin="0,10,0,0">
+
+                        <Border Style="{StaticResource Divider}" />
+                        <TextBlock Text="Application to capture" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -390,16 +496,6 @@
                                 <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" FontSize="16" />
                             </Button>
                         </Grid>
-                        <Grid Margin="0,6,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE767;" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,12,0" />
-                            <Slider Grid.Column="1" Style="{StaticResource BigSlider}" Foreground="{StaticResource AppAccentBrush}"
-                                    Value="{Binding ApplicationVolume, Mode=TwoWay}"
-                                    AutomationProperties.Name="Application volume" ToolTip="Application level sent to VRChat (0–200 %). Does not change what you hear." />
-                        </Grid>
                         <StackPanel Margin="0,8,0,0" Visibility="{Binding IsLoadingApplications, Converter={StaticResource BoolVis}}">
                             <TextBlock Text="Scanning running applications…" Style="{StaticResource Caption}" />
                             <ProgressBar IsIndeterminate="True" Height="3" Margin="0,4,0,0" AutomationProperties.Name="Scanning applications" />
@@ -407,67 +503,54 @@
                         <TextBlock Margin="0,8,0,0" Style="{StaticResource Caption}" Foreground="{StaticResource WaitBrush}"
                                    Visibility="{Binding HasNoApplications, Converter={StaticResource BoolVis}}"
                                    Text="No running applications found. Start your music app or browser, then press refresh (F5)." />
-                        <c:LevelMeter Margin="0,4,0,0" Level="{Binding ApplicationLevel}" IsLive="{Binding IsApplicationLive}" />
-                        <TextBlock Margin="0,8,0,0" Style="{StaticResource Caption}" Text="{Binding Status.ApplicationMessage}" />
-                        <TextBlock Margin="0,4,0,0" Style="{StaticResource Caption}" Foreground="{StaticResource MutedTextBrush}"
-                                   Text="Browsers are captured as a whole: all tabs/windows of the selected browser are sent. Use a separate browser for music if you need isolation." />
-                    </StackPanel>
-                </Border>
-
-                <!-- ===== Virtual microphone card ===== -->
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <DockPanel>
-                            <Ellipse Width="10" Height="10" Margin="0,0,10,0" VerticalAlignment="Center"
-                                     Fill="{Binding Status.OutputState, Converter={StaticResource StateBrush}}" />
-                            <TextBlock Text="Virtual microphone (VRChat input)" Style="{StaticResource CardTitle}" FontSize="15" />
+                        <DockPanel Margin="0,8,0,0">
+                            <Ellipse DockPanel.Dock="Left" Style="{StaticResource StateDot}" Fill="{Binding Status.ApplicationState, Converter={StaticResource StateBrush}}" />
+                            <TextBlock Style="{StaticResource Caption}" Text="{Binding Status.ApplicationMessage}" />
                         </DockPanel>
-                        <TextBlock Margin="0,8,0,0" Style="{StaticResource Caption}" Text="{Binding Status.OutputMessage}" />
-                        <Border Margin="0,10,0,0" Padding="12,10" CornerRadius="10" Background="#264F8CFF" BorderBrush="#664F8CFF" BorderThickness="1"
-                                Visibility="{Binding ShowCableSetup, Converter={StaticResource BoolVis}}">
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Content="Open setup guide" Margin="10,0,0,0" MinHeight="44" VerticalAlignment="Center"
-                                        Command="{Binding OpenSetupGuideCommand}" Style="{StaticResource AccentBigButton}" />
-                                <TextBlock TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center"
-                                           Text="VoxShift needs the free VB-CABLE driver to create the microphone VRChat listens to. It takes about two minutes to set up." />
-                            </DockPanel>
-                        </Border>
-                        <TextBlock Margin="0,6,0,0" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding VrchatHint}" />
-                        <TextBlock Text="Output device (virtual cable playback side)" Style="{StaticResource FieldLabel}" />
+                        <TextBlock Margin="18,4,0,0" Style="{StaticResource Caption}" FontSize="11.5" Foreground="{StaticResource MutedTextBrush}"
+                                   Text="Browsers are captured as a whole: all tabs/windows of the selected browser are sent. Use a separate browser for music if you need isolation." />
+
+                        <Border Style="{StaticResource Divider}" />
+                        <TextBlock Text="VRChat output (virtual cable playback side)" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
                         <ComboBox Style="{StaticResource BigCombo}" ItemsSource="{Binding OutputDevices}" SelectedItem="{Binding SelectedOutput}"
                                   ItemTemplate="{StaticResource DeviceItemTemplate}" AutomationProperties.Name="Virtual cable output device" />
-                        <WrapPanel Margin="0,12,0,0">
-                            <Button Content="Setup help" Style="{StaticResource LinkButton}" Command="{Binding OpenSetupGuideCommand}" Margin="0,0,18,6" />
-                            <Button Content="Get VB-CABLE" Style="{StaticResource LinkButton}" Command="{Binding OpenVbCableSiteCommand}" Margin="0,0,18,6" />
-                            <Button Content="Sound settings" Style="{StaticResource LinkButton}" Command="{Binding OpenSoundSettingsCommand}" Margin="0,0,18,6" />
-                            <Button Content="Retry now" Style="{StaticResource LinkButton}" Command="{Binding RetryCommand}" Margin="0,0,18,6" />
+                        <DockPanel Margin="0,8,0,0">
+                            <Ellipse DockPanel.Dock="Left" Style="{StaticResource StateDot}" Fill="{Binding Status.OutputState, Converter={StaticResource StateBrush}}" />
+                            <TextBlock Style="{StaticResource Caption}" Text="{Binding Status.OutputMessage}" />
+                        </DockPanel>
+                        <Border Style="{StaticResource Inset}" CornerRadius="12" Padding="12,10" Margin="0,10,0,0"
+                                Visibility="{Binding VrchatHint, Converter={StaticResource NotEmptyVis}}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Left" Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="15" Foreground="{StaticResource AppAccentBrush}"
+                                           Margin="0,1,10,0" VerticalAlignment="Top" />
+                                <TextBlock FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding VrchatHint}" />
+                            </DockPanel>
+                        </Border>
+                        <WrapPanel Margin="0,12,0,-6">
+                            <Button Content="Setup help" Style="{StaticResource LinkButton}" Command="{Binding OpenSetupGuideCommand}" Margin="0,0,16,6" />
+                            <Button Content="Get VB-CABLE" Style="{StaticResource LinkButton}" Command="{Binding OpenVbCableSiteCommand}" Margin="0,0,16,6" />
+                            <Button Content="Sound settings" Style="{StaticResource LinkButton}" Command="{Binding OpenSoundSettingsCommand}" Margin="0,0,16,6" />
+                            <Button Content="Recording devices" Style="{StaticResource LinkButton}" Command="{Binding OpenRecordingDevicesCommand}" Margin="0,0,16,6" />
+                            <Button Content="Retry now" Style="{StaticResource LinkButton}" Command="{Binding RetryCommand}" Margin="0,0,16,6" />
                         </WrapPanel>
                     </StackPanel>
-                </Border>
+                </Expander>
 
-                <!-- ===== Warning / notice banner ===== -->
-                <Border Style="{StaticResource Card}" Background="#33F5B942" BorderBrush="#66F5B942"
-                        Visibility="{Binding Status.Warning, Converter={StaticResource NotEmptyVis}}">
-                    <DockPanel>
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE7BA;" Foreground="{StaticResource WaitBrush}" Margin="0,1,10,0" VerticalAlignment="Top" />
-                        <TextBlock Text="{Binding Status.Warning}" TextWrapping="Wrap" FontSize="12" />
-                    </DockPanel>
-                </Border>
-                <Border Style="{StaticResource Card}" Background="#33FF5C5C" BorderBrush="#66FF5C5C"
-                        Visibility="{Binding Notice, Converter={StaticResource NotEmptyVis}}">
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource SquareIconButton}" Command="{Binding DismissNoticeCommand}" ToolTip="Dismiss">
-                            <TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="12" />
-                        </Button>
-                        <TextBlock Style="{StaticResource Icon}" Text="&#xE783;" Foreground="{StaticResource ErrorBrush}" Margin="0,1,10,0" VerticalAlignment="Top" />
-                        <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" FontSize="12" Margin="0,0,8,0" VerticalAlignment="Center" />
-                    </DockPanel>
-                </Border>
-
-                <!-- ===== Interface & options ===== -->
-                <Border Style="{StaticResource Card}">
+                <!-- ===== Preferences (collapsed by default: rarely needed) ===== -->
+                <Expander Style="{StaticResource SectionExpander}" Margin="0" AutomationProperties.Name="Preferences">
+                    <Expander.Header>
+                        <DockPanel>
+                            <Border DockPanel.Dock="Left" Style="{StaticResource IconChip}" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE713;" FontSize="16" HorizontalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Preferences" Style="{StaticResource HeaderTitle}" />
+                                <TextBlock Text="Interface, tray and close behaviour, hotkey" Style="{StaticResource HeaderCaption}" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Expander.Header>
                     <StackPanel>
-                        <TextBlock Text="Interface &amp; options" Style="{StaticResource CardTitle}" FontSize="15" Margin="0,0,0,10" />
+                        <TextBlock Text="INTERFACE" Style="{StaticResource SectionLabel}" />
                         <ToggleButton Style="{StaticResource OptionToggle}" Tag="{StaticResource AppAccentBrush}" IsChecked="{Binding VrControllerMode, Mode=TwoWay}"
                                       AutomationProperties.Name="VR Controller Mode"
                                       ToolTip="Replace this window and the soundboard dock with one simplified window with big buttons. Audio keeps running.">
@@ -477,7 +560,7 @@
                                            Text="One simple window with big buttons for VR desktop overlays. Return any time." />
                             </StackPanel>
                         </ToggleButton>
-                        <ToggleButton Margin="0,10,0,0" Style="{StaticResource OptionToggle}" Tag="{StaticResource SoundAccentBrush}"
+                        <ToggleButton Margin="0,8,0,0" Style="{StaticResource OptionToggle}" Tag="{StaticResource SoundAccentBrush}"
                                       IsChecked="{Binding SoundboardDockVisible, Mode=TwoWay}" AutomationProperties.Name="Show the soundboard dock"
                                       ToolTip="Show the soundboard attached to the right side of this window (Ctrl+B)">
                             <StackPanel>
@@ -485,7 +568,7 @@
                                 <TextBlock Style="{StaticResource OptionDescription}" Text="Attached to the right side of this window. Collapse it with its arrow button." />
                             </StackPanel>
                         </ToggleButton>
-                        <ToggleButton Margin="0,10,0,0" Style="{StaticResource OptionToggle}" DataContext="{Binding Soundboard}"
+                        <ToggleButton Margin="0,8,0,0" Style="{StaticResource OptionToggle}" Tag="{StaticResource SoundAccentBrush}" DataContext="{Binding Soundboard}"
                                       IsChecked="{Binding IsExpanded, Mode=TwoWay}" AutomationProperties.Name="Expand the soundboard dock"
                                       ToolTip="Expanded: full soundboard. Collapsed: a narrow strip you can click to expand.">
                             <StackPanel>
@@ -494,38 +577,43 @@
                             </StackPanel>
                         </ToggleButton>
 
-                        <WrapPanel Margin="0,14,0,0">
-                            <CheckBox Content="Always on top" IsChecked="{Binding AlwaysOnTop}" Margin="0,0,20,6" MinHeight="36" />
-                            <CheckBox Content="Minimize to tray" IsChecked="{Binding MinimizeToTray}" Margin="0,0,20,6" MinHeight="36" />
-                            <CheckBox Content="Start in tray" IsChecked="{Binding StartMinimized}" IsEnabled="{Binding MinimizeToTray}" MinHeight="36" Margin="0,0,0,6"
+                        <TextBlock Text="WINDOW &amp; TRAY" Style="{StaticResource SectionLabel}" Margin="2,18,0,6" />
+                        <WrapPanel>
+                            <CheckBox Content="Always on top" IsChecked="{Binding AlwaysOnTop}" Margin="0,0,20,4" MinHeight="36" />
+                            <CheckBox Content="Minimize to tray" IsChecked="{Binding MinimizeToTray}" Margin="0,0,20,4" MinHeight="36" />
+                            <CheckBox Content="Start in tray" IsChecked="{Binding StartMinimized}" IsEnabled="{Binding MinimizeToTray}" MinHeight="36" Margin="0,0,0,4"
                                       ToolTip="Start hidden in the system tray (requires Minimize to tray)" />
                         </WrapPanel>
-                        <TextBlock x:Name="CloseActionLabel" Style="{StaticResource FieldLabel}" Text="When clicking the X button" Margin="0,4,0,4" />
+                        <TextBlock x:Name="CloseActionLabel" Style="{StaticResource FieldLabel}" Text="When clicking the X button" Margin="0,6,0,6" />
                         <ComboBox Style="{StaticResource BigCombo}" ItemsSource="{Binding CloseActionOptions}" DisplayMemberPath="Label"
-                                  SelectedValuePath="Value" SelectedValue="{Binding CloseAction, Mode=TwoWay}" Margin="0,0,0,10"
+                                  SelectedValuePath="Value" SelectedValue="{Binding CloseAction, Mode=TwoWay}"
                                   AutomationProperties.LabeledBy="{Binding ElementName=CloseActionLabel}"
                                   ToolTip="Always ask, minimize VoxShift to the system tray, or quit it" />
-                        <Grid Margin="0,4,0,0">
+
+                        <TextBlock Text="HOTKEY" Style="{StaticResource SectionLabel}" Margin="2,18,0,6" />
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <CheckBox Content="Toggle hotkey" IsChecked="{Binding HotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,12,0" MinHeight="36" />
-                            <TextBox x:Name="HotkeyBox" Grid.Column="1" Text="{Binding HotkeyText, Mode=OneWay}" IsReadOnly="True" MinHeight="40"
+                            <CheckBox Content="Global toggle" IsChecked="{Binding HotkeyEnabled}" VerticalAlignment="Center" Margin="0,0,12,0" MinHeight="36"
+                                      ToolTip="Switch between microphone and application audio from anywhere, also while VRChat is focused" />
+                            <TextBox x:Name="HotkeyBox" Grid.Column="1" Text="{Binding HotkeyText, Mode=OneWay}" IsReadOnly="True" MinHeight="44"
                                      VerticalContentAlignment="Center" IsReadOnlyCaretVisible="False" PreviewKeyDown="OnHotkeyBoxKeyDown"
                                      ToolTip="Click here and press the key combination (e.g. Ctrl+Alt+M)"
                                      AutomationProperties.Name="Toggle hotkey" />
                         </Grid>
                         <TextBlock Margin="0,6,0,0" Style="{StaticResource Caption}" Foreground="{StaticResource ErrorBrush}"
                                    Text="{Binding HotkeyError}" Visibility="{Binding HotkeyError, Converter={StaticResource NotEmptyVis}}" />
-                        <WrapPanel Margin="0,12,0,0">
-                            <Button Content="Open log folder" Style="{StaticResource LinkButton}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,18,0" />
-                            <Button Content="Recording devices" Style="{StaticResource LinkButton}" Command="{Binding OpenRecordingDevicesCommand}" Margin="0,0,18,0" />
+                        <Border Style="{StaticResource Inset}" CornerRadius="12" Padding="12,10" Margin="0,12,0,0">
+                            <TextBlock Style="{StaticResource Caption}" FontSize="11.5"
+                                       Text="While this window is focused: Ctrl+1 microphone · Ctrl+2 application · Ctrl+T talk over music · Ctrl+B soundboard · F5 refresh apps." />
+                        </Border>
+                        <WrapPanel Margin="0,12,0,-6">
+                            <Button Content="Open log folder" Style="{StaticResource LinkButton}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,16,6" />
                         </WrapPanel>
-                        <TextBlock Margin="0,10,0,0" Style="{StaticResource Caption}" Foreground="{StaticResource MutedTextBrush}"
-                                   Text="Shortcuts while this window is focused: Ctrl+1 microphone · Ctrl+2 application · Ctrl+T talk over music · Ctrl+B soundboard." />
                     </StackPanel>
-                </Border>
+                </Expander>
             </StackPanel>
         </ScrollViewer>
     </Grid>

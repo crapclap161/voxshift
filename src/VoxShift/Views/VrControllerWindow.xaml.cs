@@ -26,7 +26,7 @@ public partial class VrControllerWindow : Window
         DataContext = vm;
         InitializeComponent();
         RestoreGeometry();
-        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x14, 0x16, 0x1B);
+        SourceInitialized += (_, _) => WindowStyling.ApplyDarkChrome(new WindowInteropHelper(this).Handle, 0x0F, 0x11, 0x15);
         SizeChanged += (_, _) => UpdateColumns();
         Closing += OnClosing;
     }
