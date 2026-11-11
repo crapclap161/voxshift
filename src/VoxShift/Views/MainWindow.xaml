@@ -181,7 +181,7 @@
                             </Border>
                             <Border Style="{StaticResource StatusChip}" ToolTip="Talk over music: send your voice together with the application audio">
                                 <StackPanel>
-                                    <TextBlock Text="TALK OVER MUSIC" Style="{StaticResource ChipLabel}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="TALK-OVER" Style="{StaticResource ChipLabel}" TextTrimming="CharacterEllipsis" />
                                     <TextBlock>
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
@@ -217,7 +217,7 @@
                             </Border>
                             <Border Style="{StaticResource StatusChip}" ToolTip="{Binding Status.OutputMessage}">
                                 <StackPanel>
-                                    <TextBlock Text="VRCHAT OUTPUT" Style="{StaticResource ChipLabel}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="VRCHAT" Style="{StaticResource ChipLabel}" TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding OutputStateText}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
@@ -313,7 +313,7 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0" Width="132">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                                 <TextBlock Style="{StaticResource Icon}" Text="&#xE7F5;" FontSize="14" Margin="0,0,8,0" Foreground="{StaticResource SoundAccentBrush}" />
                                 <TextBlock Text="Soundboard volume" FontSize="12.5" VerticalAlignment="Center" />
                             </StackPanel>

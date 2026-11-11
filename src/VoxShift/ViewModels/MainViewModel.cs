@@ -420,14 +420,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>The virtual microphone (VB-CABLE) output is running, i.e. VRChat can hear VoxShift.</summary>
     public bool IsOutputConnected => _status.OutputState == ComponentState.Running;
 
-    /// <summary>Short microphone state for status chips, e.g. "LIVE", "MUTED · SOUND PLAYING", "OFF".</summary>
+    /// <summary>Short microphone state for status chips: "LIVE", "MUTED" (sound playing), "OFF", "NO DEVICE", "NOT SENT".</summary>
     public string MicrophoneStateText
     {
         get => _microphoneStateText;
         private set => Set(ref _microphoneStateText, value);
     }
 
-    public string OutputStateText => IsOutputConnected ? "CONNECTED" : _status.OutputState == ComponentState.Waiting ? "WAITING" : "NOT CONNECTED";
+    public string OutputStateText => IsOutputConnected ? "ONLINE" : _status.OutputState == ComponentState.Waiting ? "WAITING" : "OFFLINE";
 
     public string SoundboardStateText
     {
@@ -487,10 +487,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         bool micWanted = _mode == AudioSource.Microphone || _talkOverMusic;
         MicrophoneStateText =
-            suppressed ? "MUTED · SOUND PLAYING"
+            suppressed ? "MUTED"
             : IsMicrophoneLive ? "LIVE"
-            : !micWanted ? "OFF · APP MODE"
-            : !micRunning ? "UNAVAILABLE"
+            : !micWanted ? "OFF"
+            : !micRunning ? "NO DEVICE"
             : !output ? "NOT SENT"
             : "OFF";
         TransmitDetail = BuildTransmitDetail();

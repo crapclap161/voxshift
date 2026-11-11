@@ -98,6 +98,7 @@ internal static class ScreenshotRenderer
         vm.Mode = AudioSource.Microphone;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.78, 0.66, 0.77);
         vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: false, dropHint: string.Empty);
+        vm.RefreshEffectiveState();
         await Settle(400);
 
         // 1) Application picker (needs the real window for its popup)
@@ -143,6 +144,7 @@ internal static class ScreenshotRenderer
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.78, 0.66, 0.77);
         vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: false, dropHint: string.Empty);
         vm.RefreshEffectiveState();
+        vm.RefreshEffectiveState();
         await RenderFullHeight(main, Path.Combine(directory, "main-microphone.png"));
 
         vm.Mode = AudioSource.Application;
@@ -156,6 +158,7 @@ internal static class ScreenshotRenderer
 
         // 4) Audio mixing controls while a sound plays: Spotify continues, the microphone is auto-muted.
         vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
+        vm.RefreshEffectiveState();
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.70, 0.78, 0.88);
         if (mixingCard is not null && statusCard is not null)
         {
@@ -171,15 +174,18 @@ internal static class ScreenshotRenderer
         vm.Mode = AudioSource.Microphone;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.86);
         vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
+        vm.RefreshEffectiveState();
         await RenderDocked(main, dock, DockWidth, Path.Combine(raw, "v005-soundboard-docked-expanded.png"));
 
         // 6) Collapsed dock: the slim strip with its expand handle.
         vm.Soundboard.ApplyPreview(boards, idle, expanded: false, dragOver: false, dropHint: string.Empty);
+        vm.RefreshEffectiveState();
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.74, 0.20, 0.71);
         await RenderDocked(main, dock, SoundboardDockController.CollapsedWidth, Path.Combine(raw, "v005-soundboard-docked-collapsed.png"));
 
         // 7) Drag & drop target state of the dock, exactly as shown while files are dragged over it.
         vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: true, dropHint: "Drop to add sounds (3 items)");
+        vm.RefreshEffectiveState();
         dock.Width = DockWidth;
         dock.Height = 760;
         Layout(dock, 760);
@@ -192,6 +198,8 @@ internal static class ScreenshotRenderer
         vm.Mode = AudioSource.Application;
         vm.ApplyPreview(mics, mics[1], outputs, outputs[0], apps, apps[1], status, 0.70, 0.78, 0.88);
         vm.Soundboard.ApplyPreview(boards, playing, expanded: true, dragOver: false, dropHint: string.Empty);
+        vm.RefreshEffectiveState();
+        vm.RefreshEffectiveState(); // status tiles must reflect the sounds that are now playing
         vr.Height = VrHeight;
         Layout(vr, VrHeight);
         await Settle(700);
@@ -202,6 +210,7 @@ internal static class ScreenshotRenderer
         vrWindow.Close();
         dockWindow.Hide();
         vm.Soundboard.ApplyPreview(boards, idle, expanded: true, dragOver: false, dropHint: string.Empty);
+        vm.RefreshEffectiveState();
 
         // 9) Setup help
         var help = new SetupHelpWindow { Owner = window, WindowStartupLocation = WindowStartupLocation.Manual, Left = 600, Top = 20 };

@@ -83,8 +83,8 @@ chips show what is <i>actually</i> transmitted right now.</sub></p>
 From top to bottom:
 
 1. **Status**: what VRChat hears right now in one sentence (*“VRChat hears Spotify and your microphone.”*), plus four
-   large chips: **Microphone** (LIVE / MUTED · SOUND PLAYING / OFF), **Talk over music**, **Sounds** and **VRChat
-   output**, and the *To VRChat* level meter. The chips always show the *effective* state, not just your settings.
+   large chips: **Microphone** (LIVE / MUTED / OFF), **Talk-over**, **Sounds** and **VRChat**
+   (ONLINE / OFFLINE), and the *To VRChat* level meter. The chips always show the *effective* state, not just your settings.
 2. **Audio source**: two big buttons, **MICROPHONE** and **APPLICATION AUDIO**.
 3. **Audio mixing**: the **Talk over music** and **Auto-mute mic during soundboard** switches, and the soundboard
    volume.
@@ -166,7 +166,7 @@ Turn it **off** again to go back to music only. Your microphone then never leaks
 
 <p align="center"><img src="docs/screenshots/v005-audio-mixing.png" width="520" alt="Audio mixing card with Talk over music on, Auto-mute on and the microphone muted while a sound plays"></p>
 <p align="center"><sub>Talk over music and Auto-mute both on, while a sound plays: Spotify continues, the microphone chip
-shows <b>MUTED · SOUND PLAYING</b>.</sub></p>
+shows <b>MUTED</b>.</sub></p>
 
 <a id="dockable-soundboard"></a>
 ## 🎛️ Dockable Soundboard
@@ -449,10 +449,10 @@ use it), *Auto-mute* starts **on**, *Talk over music* starts **off**, and the fu
 | Symptom | Fix |
 |---|---|
 | *“No virtual audio cable found”* | Install VB-CABLE and reboot, then press **Retry now**. |
-| Nobody hears anything | VRChat's microphone must be **CABLE Output**, and VoxShift must show **ON AIR** with *VRChat output: CONNECTED*. Check that you aren't muted in VRChat. |
+| Nobody hears anything | VRChat's microphone must be **CABLE Output**, and VoxShift must show **ON AIR** with *VRChat: ONLINE*. Check that you aren't muted in VRChat. |
 | Others can't hear me in application mode | That's the classic switch. Turn on **Talk over music** to send your voice with the music. |
 | My voice disappears when I play a sound | That's **Auto-mute** (on by default). It returns when the sound ends. Turn it off to talk over sounds. |
-| My voice doesn't come back after a sound | Check the *Microphone* chip: *OFF · APP MODE* means application mode without Talk over music. Auto-mute always releases when the last sound ends, also after Stop all. |
+| My voice doesn't come back after a sound | Check the *Microphone* chip: *OFF* in application mode means Talk over music is off. Auto-mute always releases when the last sound ends, also after Stop all. |
 | I can't hear anything on my PC anymore | Your Windows default output is CABLE Input. Set your headphones as default (VoxShift warns about this). |
 | Others hear the music twice or with an echo | The music app outputs directly to *CABLE Input* (*Settings → Sound → Volume mixer*). Reset it to your headphones, and disable *“Listen to this device”* on CABLE Output. |
 | The soundboard dock is gone | Click **Show soundboard** (Ctrl+B) in the title area. If it is a slim strip, click its **▶** handle. |
