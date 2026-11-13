@@ -5,11 +5,8 @@
 <h1 align="center">VoxShift</h1>
 
 <p align="center">
-  <b>The VR-friendly audio switcher and soundboard for VRChat.</b><br>
-  Send <b>your microphone</b>, <b>the music of one application</b> (Spotify, YouTube in your browser, VLC, …) or
-  <b>both at once</b> into VRChat, fire off sounds from a <b>local soundboard</b> that sits right next to the window,
-  and let VoxShift <b>mute your mic automatically while a sound plays</b>. Big buttons and a dedicated
-  <b>VR Controller Mode</b> make it easy to use with a headset on.
+  <b>Play music and sound effects into VRChat, and switch between your voice and your music with one click.</b><br>
+  A free audio switcher and soundboard for VRChat on Windows, made to be easy to use with VR controllers.
 </p>
 
 <p align="center">
@@ -20,537 +17,348 @@
 </p>
 
 <p align="center">
-  <a href="#-quick-start"><b>Quick start</b></a> ·
-  <a href="#-features"><b>Features</b></a> ·
-  <a href="#smart-microphone-muting"><b>Smart muting</b></a> ·
-  <a href="#talk-over-music"><b>Talk over music</b></a> ·
-  <a href="#dockable-soundboard"><b>Soundboard</b></a> ·
-  <a href="#vr-controller-mode"><b>VR Controller Mode</b></a> ·
-  <a href="#-troubleshooting"><b>Troubleshooting</b></a>
+  <img src="docs/screenshots/hero.png" width="860" alt="VoxShift main window with the soundboard docked on its right side, two sounds playing">
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/hero.png" width="860" alt="VoxShift main window with the soundboard docked to its right edge, two sounds playing">
-</p>
+<p align="center"><sub>The main window with the soundboard docked on its right. Two sounds are playing, so VoxShift has
+muted the microphone automatically; it comes back by itself when they end. (Screenshot of the real app with sample data.)</sub></p>
 
-<p align="center"><sub>The redesigned main window with the <b>soundboard docked on its right</b>. Two sounds are playing, so
-VoxShift has <b>muted the microphone automatically</b>; it comes back by itself when they end. Rendered from the real
-WPF UI with sample devices and sounds.</sub></p>
-
----
-
-## ✨ Why VoxShift?
-
-- 🎚️ **One click, no fiddling.** Point VRChat's microphone at the virtual cable once. Every switch after that happens in
-  VoxShift, instantly and without restarting VRChat.
-- 🎤🎵 **Voice, music or both.** Microphone mode sends only your voice. Application mode sends only your music. Turn on
-  **Talk over music** and VRChat hears your music *and* your voice, mixed safely with separate volumes.
-- 🤫 **Smart microphone muting.** Press the air horn and your mic pauses while it plays, then returns the moment the
-  last sound ends. No extra clicks. Only VoxShift's mix is affected; Windows, Discord and other apps are untouched.
-- 🎛️ **A soundboard that docks to the window.** It opens as its own panel attached to the right side of VoxShift,
-  follows the window, and collapses into a slim strip when you don't need it.
-- 🥽 **Made for VR controllers.** Large buttons, obvious ON/OFF states, no right-click needed, and an optional
-  **VR Controller Mode** that reduces everything to one simple window for VR desktop overlays.
-- 🎯 **Only that app, only your files.** VoxShift captures just the selected program, not your desktop, and plays your
-  sound files straight from where they are. Nothing is copied or uploaded.
-
-## 🚀 Quick start
-
-| | Step |
-|:-:|---|
-| **1** | Install the free **[VB-CABLE](https://vb-audio.com/Cable/)** driver (`VBCABLE_Setup_x64.exe` → *Run as administrator* → *Install Driver*) and **reboot**. |
-| **2** | Download **`VoxShift-v…-win-x64-portable.exe`** from the **[latest release](https://github.com/crapclap161/voxshift/releases/latest)** and run it. It's portable: no installer, no .NET, nothing to extract. (A ZIP with docs is available too.) |
-| **3** | Choose your **microphone** and the **application** to share (start it first, then press ⟳ or F5), and set the volumes. |
-| **4** | In VRChat: **Settings → Audio & Voice → Microphone → `CABLE Output (VB-Audio Virtual Cable)`**. You only do this once. |
-| **5** | Press **🎤 Microphone** (Ctrl+1) to talk and **🎵 Application** (Ctrl+2) to play music. Want to talk over the music? Turn on **Talk over music** (Ctrl+T). |
-| **6** | Drag audio files onto the **Soundboard** on the right and click a button to play it into VRChat. Your mic mutes itself while it plays. |
-| **7** | Wearing your headset? Click **VR mode** for big, simple controls in your VR desktop overlay. |
-
-> [!TIP]
-> Turn **off VRChat's Noise Suppression** while playing music, because it treats music as noise.
-> If **LIMIT** lights up next to the *Output* meter, lower a volume a little.
-
-> [!NOTE]
-> `VoxShift.exe` isn't code-signed yet, so SmartScreen may show *“Windows protected your PC”*. Choose
-> **More info → Run anyway**, and verify the download against `SHA256SUMS.txt` from the release.
-
-## 🖥️ The interface
-
-<p align="center"><img src="docs/screenshots/main-ui.png" width="540" alt="VoxShift main window in application mode with Talk over music on: live status, source selector and mixer"></p>
-<p align="center"><sub>Application mode with <b>Talk over music</b> on: VRChat hears Spotify and your voice. The status
-tiles show what is <i>actually</i> transmitted right now.</sub></p>
-
-The window was redesigned in v0.0.7 as an audio control dashboard. Everything you use while playing sits at the top and
-fits without scrolling; set-up and rarely used options are tucked into two collapsible sections.
-
-1. **Header**: the **Soundboard** switch (lit while the dock is shown) and **VR mode**. Always visible.
-2. **Live status**: what VRChat hears right now in one sentence (*“VRChat hears Spotify and your microphone.”*), four
-   tiles – **Mic** (LIVE / MUTED / OFF), **App audio**, **Sounds** and **VRChat** (ONLINE / OFFLINE) – and the
-   segmented **Output** level meter. The tiles always show the *effective* state, not just your settings. Anything
-   that needs attention (missing virtual cable, warnings) appears directly below.
-3. **Audio source**: one segmented switch, **Microphone** or **Application**.
-4. **Mixer**: one strip each for **Microphone**, **Application** and **Soundboard** with a 0–200 % slider, its value
-   and a live meter, followed by the **Talk over music** and **Auto-mute mic during soundboard** switches.
-5. **Sources & devices**: microphone, application to capture, VRChat output (virtual cable) with their status and the
-   setup links.
-6. **Preferences** (collapsed by default): VR Controller Mode, soundboard dock, always on top, tray, close button
-   behaviour and the global hotkey.
-
-| Option | What it does | Default |
-|---|---|---|
-| 🎤 **Microphone mode** | VRChat hears your microphone. Application audio is never sent. | on |
-| 🎵 **Application audio mode** | VRChat hears the selected application. Your mic is sent only with *Talk over music*. | |
-| 🎙️ **Talk over music** | In application mode, VRChat hears the application **and** your microphone. | off |
-| 🤫 **Auto-mute mic during soundboard** | Your mic pauses while a soundboard sound plays and returns when it ends. | on |
-| 🎛️ **Soundboard dock** | Shows the soundboard attached to the right of the window. | on |
-| 🥽 **VR Controller Mode** | Replaces the full interface with one simplified window. | off |
-
-<a id="smart-microphone-muting"></a>
-## 🤫 Smart Microphone Muting
-
-When you click a soundboard sound, VoxShift **automatically mutes your microphone's contribution to VRChat**, plays
-the sound, and **brings your microphone back as soon as the sound has completely finished**. You keep talking, click
-*Airhorn*, VRChat hears the air horn without your voice over it, and a moment after it ends your voice is back. No
-extra clicks.
-
-- **It follows the real playback**, not a timer: the mixer itself reports when the last sound has finished.
-  Overlapping sounds keep the mic muted until the *last* one ends. **Stop all**, stopping a single sound, a sound that
-  fails or a device that disconnects all release the mute correctly, so the mic is never left muted by accident.
-- **No pops, no leaks.** The microphone fades out within 8 ms of the click and fades back in over 30 ms. A 100 ms hold
-  between quickly repeated clicks keeps your voice from flickering in between.
-- **Always up to date.** If you change the mode, *Talk over music* or the auto-mute switch while a sound plays, VoxShift
-  recalculates what VRChat should hear from your current settings. It never restores an outdated state.
-- **Only inside VoxShift.** Your Windows microphone is never muted and no system setting is changed, so Discord and
-  other apps keep hearing you normally.
-- **Music keeps playing.** In application mode with *Talk over music*, only the microphone pauses. Spotify and the
-  sound carry on.
-- **You still hear your sounds.** Headphone monitoring (*Hear sounds myself*) is not affected.
-
-**Toggle it** with **Auto-mute mic during soundboard** in the *Mixer* card, with **Auto-mute mic on sounds** at
-the bottom of the soundboard dock, with **Auto-mute mic on sounds** in VR Controller Mode, or from the tray menu. It is
-**on by default**. Turn it off if you want to talk over your sounds.
-
-<a id="talk-over-music"></a>
-## 🎙️ Talk Over Music
-
-By default VoxShift is a clean switch: application mode sends **only** the music. Turn on **Talk over music** to DJ,
-play Spotify for your friends or stream music while you speak:
-
-1. Select the music application (e.g. Spotify) and press **Application**.
-2. Turn on **Talk over music** (Ctrl+T, the *Mixer* card, VR Controller Mode or the tray menu).
-3. Talk normally. VRChat hears the music and your voice together.
-
-Turn it **off** again to go back to music only. Your microphone then never leaks into application mode.
-
-- **Volumes stay independent.** The microphone slider sets your voice, the application slider sets the music
-  (0–200 % each), and the soundboard has its own slider. Lower the music a bit so your voice stays clear.
-- **Safe mixing.** Voice, music and sounds are summed once and pass through VoxShift's −1 dBFS peak limiter, so even
-  everything at 200 % never clips harshly. The *Output* meter shows the final mix.
-- **Microphone mode is unaffected.** It still sends only your voice; application audio never leaks into it.
-- **Smooth switching.** With Talk over music on, switching from microphone to application mode keeps your voice
-  continuously on air while the music fades in.
-- **With the soundboard:** if *Auto-mute* is on, a sound temporarily mutes only your voice; the music keeps playing.
-  If *Auto-mute* is off, VRChat hears music, voice and sound together.
-- Your microphone is never played back into your own headphones, so there is no echo or feedback loop.
-
-### What VRChat hears
-
-| Mode | Talk over music | Sound playing | Auto-mute mic | VRChat hears |
-|---|:-:|:-:|:-:|---|
-| 🎤 Microphone | – | no | – | microphone |
-| 🎤 Microphone | – | yes | **on** | soundboard only (mic muted) |
-| 🎤 Microphone | – | yes | off | microphone + soundboard |
-| 🎵 Application | off | no | – | application only |
-| 🎵 Application | off | yes | – | application + soundboard |
-| 🎵 Application | **on** | no | – | application + microphone |
-| 🎵 Application | **on** | yes | **on** | application + soundboard (mic muted) |
-| 🎵 Application | **on** | yes | off | application + microphone + soundboard |
-
-<p align="center"><img src="docs/screenshots/audio-mixing.png" width="540" alt="Live status and mixer with Talk over music on, Auto-mute on and the microphone muted while a sound plays"></p>
-<p align="center"><sub>Talk over music and Auto-mute both on, while a sound plays: Spotify continues, the microphone chip
-shows <b>MUTED</b>.</sub></p>
-
-<a id="dockable-soundboard"></a>
-## 🎛️ Dockable Soundboard
-
-The soundboard plays **sound files from your PC into VRChat** with one click: air horns, applause, stream alerts, short
-jingles. It lives in its **own window, docked to the right side of VoxShift**, so it no longer takes space
-away from the audio controls.
-
-<p align="center"><img src="docs/screenshots/soundboard-docked-expanded.png" width="860" alt="Main window with the soundboard dock expanded on its right: collection selector, eight sound buttons, volume and monitoring controls"></p>
-<p align="center"><sub>The expanded dock: collection selector, Add sounds / Edit / Stop all, large sound pads (two
-playing, with progress bars), the <i>To VRChat</i> and <i>Headphones</i> volumes, <i>Hear sounds myself</i> and the auto-mute switch.</sub></p>
-
-### Expand, collapse and move it
-
-- **Collapse** with the **◀** button in the dock's header. The dock becomes a **slim strip** next to the main window
-  with a large **▶** handle, the number of sounds playing, and a **Stop all** button while sounds play. It never
-  covers the main window.
-- **Expand** by clicking the **▶** handle or anywhere on the strip.
-- **Show or hide** the dock with the **Soundboard** switch in the header (Ctrl+B) or the *Soundboard
-  dock* switch. Closing the dock never closes VoxShift.
-- **It follows the main window**: drag VoxShift (or the dock's header) and both move together; resize the main window
-  and the dock keeps the same height. Drag the dock's outer edge to make it wider or narrower.
-- **Always on screen:** if there is not enough room to the right of VoxShift when you finish moving it, VoxShift slides
-  the main window to the left so both fit. On very narrow screens (or a maximized window) the dock stays visible by
-  overlapping the main window. Positions are calculated in physical pixels, so it lines up on every monitor and DPI
-  setting.
-- It minimizes, restores and hides to the tray together with the main window, and follows *Always on top*.
-- The expanded/collapsed state, visibility and width are remembered.
-
-<p align="center"><img src="docs/screenshots/soundboard-docked-collapsed.png" width="680" alt="Main window with the soundboard collapsed to a narrow strip with an expand handle on its right"></p>
-<p align="center"><sub>Collapsed: a slim strip with a large expand handle. Drop files onto it to add sounds.</sub></p>
-
-### Add sounds with drag & drop
-
-1. Open Windows Explorer next to VoxShift.
-2. Select one or more audio files, or a whole folder.
-3. Drag them onto the soundboard dock. It lights up as a drop target, **also when it is collapsed**.
-4. Drop them. A button appears for each new sound right away, and the dock expands.
-
-<p align="center"><img src="docs/screenshots/soundboard-drag-drop.png" width="420" alt="The soundboard dock highlighted as a drop target while audio files are dragged over it"></p>
-
-- **Your first soundboard is created automatically.** If you have none yet, dropping files creates one called
-  *Soundboard*. Otherwise the files go into the selected collection.
-- Prefer a dialog? Click **Add sounds** and pick files with the Windows file picker.
-- **Supported formats:** WAV, MP3, FLAC, M4A/AAC and WMA. Unsupported files (e.g. `.ogg`), missing files and files
-  that are already on the soundboard are skipped, and VoxShift tells you which ones and why.
-
-### Your files stay where they are
-
-> [!IMPORTANT]
-> VoxShift **does not copy, move, upload, or modify** imported audio files. The soundboard references and plays the
-> original files directly from their local locations, for example `D:\Music\Soundboard\airhorn.mp3`.
-> Removing a soundboard entry, or deleting a whole collection, **never deletes the original audio file**.
-
-If you move or rename a file later, its button shows a ⚠ warning instead of failing. Turn on **Edit**, click the
-button (or right-click it), choose **Relink file…**, and point it at the new location.
-
-### Play, stop and manage sounds
-
-| Action | How |
-|---|---|
-| Play a sound | Click its button. Several sounds can play at the same time; a playing button lights up with a progress bar. |
-| Stop one sound | Click the playing button again |
-| Stop everything | **Stop all** (also on the collapsed strip and in VR Controller Mode) |
-| Rename, relink, remove, play overlapping | Turn on **Edit** and click a sound, or right-click it. No right-click is needed, which helps with VR controllers. |
-| Switch collection | The collection selector at the top of the dock (**＋** new, **✎** rename, **🗑** delete; files are never deleted) |
-| VRChat volume | *To VRChat* slider (0–200 %), independent of the microphone and application volume |
-| Hear sounds yourself | **Hear sounds myself** (on by default) also plays every sound in your headphones, with its own *Headphones* slider |
-
-### Hear the sounds yourself
-
-| Sound goes to | Volume control | Contains |
-|---|---|---|
-| VRChat (virtual microphone) | *To VRChat* | the transmitted sources (see the table above) **+** soundboard |
-| Your headphones | *Headphones* | soundboard only |
-
-- Only the soundboard is played back to you. Your own microphone is never echoed into your headphones (also not with
-  Talk over music), and the captured application plays there as usual anyway.
-- Auto-mute never interrupts what you hear: it only mutes the microphone in VRChat's mix.
-- VoxShift follows your Windows default playback device and never monitors into the virtual cable. If your Windows
-  default playback device *is* CABLE Input, monitoring pauses with a hint, because otherwise VRChat would hear every
-  sound twice.
-
-> [!NOTE]
-> Each sound is decoded once and kept in memory, up to 5 minutes per sound. Use application mode for long music.
-
-<a id="vr-controller-mode"></a>
-## 🥽 VR Controller Mode
-
-Pointing at small buttons with a VR controller through a desktop overlay is hard. **VR Controller Mode** replaces the
-full window and the dock with **one simplified window that contains only the most important controls**, all of them
-large:
-
-<p align="center"><img src="docs/screenshots/vr-controller-mode.png" width="760" alt="VR Controller Mode window with large mode buttons, Talk over music and Auto-mute toggles, status tiles, Stop all and a grid of large sound buttons"></p>
-
-- **Status tiles**: what is transmitted, whether your microphone is LIVE or MUTED, Talk over music and Auto-mute ON/OFF,
-  whether the VRChat output is connected and how many sounds are playing.
-- **Microphone** and **Application audio** as huge buttons, the active one lit up.
-- **Talk over music** and **Auto-mute mic on sounds** as large ON/OFF switches.
-- **Your soundboard**: big collection buttons, a scrollable grid of large sound buttons with playing feedback, **▲ / ▼**
-  page buttons (no fiddly scrolling) and **Stop all**.
-- **Full interface** in the top right corner (or Esc) returns to the normal window and its docked soundboard.
-
-**Activate it** with the **VR mode** button in the header, the *VR Controller Mode* switch in *Preferences*, or the tray menu.
-VoxShift remembers the mode and the window's size and position, and starts in it next time.
-
-**Using it with a headset on:** open your VR desktop overlay (SteamVR's desktop view, Virtual Desktop, OVR Toolkit,
-XSOverlay, …), point at the VoxShift window and click with the trigger. The window can be resized; the sound grid
-adds columns as it gets wider.
-
-- Switching modes only changes the interface. The audio engine keeps running: music, microphone and playing sounds
-  are not interrupted, and no second soundboard or engine is created.
-- You can't get stuck: the window's **X** also returns to the full interface, and the tray icon always offers
-  **Show full interface**.
-
-> [!NOTE]
-> VR Controller Mode is a desktop window designed for **standard Windows pointer input** as provided by VR desktop
-> overlays. VoxShift does not integrate with OpenXR, SteamVR or Meta controller APIs directly.
-
-## 🧩 Features
+## ⬇️ Download
 
 <table>
 <tr>
-<td width="50%" valign="top">
+<td align="center" width="50%">
 
-**Audio routing**
-- Microphone mode, application mode, and optional **Talk over music** (voice + music)
-- **Automatic microphone muting** while soundboard sounds play, synchronized with real playback
-- Click-free switching: with Talk over music off, sources are never mixed (8 ms fade-out, then fade-in)
-- Separate microphone, application and soundboard volume, **0–200 %** each
-- −1 dBFS peak limiter on the final mix, so 200 % never clips harshly
-- Live meters for microphone, application and the final output
-- Clock-drift compensation and about 40–70 ms end-to-end latency
-- Global toggle hotkey (default `Ctrl+Alt+M`), Ctrl+1 / Ctrl+2 / Ctrl+T / Ctrl+B shortcuts, tray menu
+### **[⬇ Download VoxShift](https://github.com/crapclap161/voxshift/releases/latest)**
 
-**Application capture**
-- Lists running apps, with the ones currently playing marked ▷
-- Groups multi-process apps (Chrome, Edge, Firefox, Spotify, Discord) into one entry
-- Re-attaches automatically when the app restarts
-
-<img src="docs/screenshots/application-picker-framed.png" width="340" alt="Application picker">
+Open the page, scroll to **Assets** and click<br>
+**`VoxShift-v…-win-x64-portable.exe`**<br>
+It is one file. No installer, nothing to extract.
 
 </td>
-<td width="50%" valign="top">
+<td valign="top" width="50%">
 
-**Soundboard**
-- Separate window **docked to the right** of VoxShift, collapsible to a slim strip
-- Drag & drop imports from Windows Explorer (also onto the collapsed strip)
-- Multiple soundboard collections, created automatically on the first drop
-- Large buttons with playing state and progress, overlapping sounds, Stop all
-- Edit mode for rename / relink / remove without right-clicking
-- Hear the sounds yourself in your headphones, with its own volume
-- Plays your original files in place, never copied
-
-**VR-friendly interface**
-- Big buttons and sliders (48–116 px targets), obvious ON/OFF switches, strong contrast
-- Status chips that always show the effective audio state
-- Optional **VR Controller Mode** with only the essentials
-
-**Comfort and reliability**
-- Recovers automatically when devices are unplugged or Windows defaults change
-- Always on top, minimize to tray, start in tray
-- **Close button your way:** ask, minimize to the tray or quit (*When clicking the X button*)
-- Remembers all settings, migrates older versions automatically
-- 100 % local: no network access, no telemetry, no admin rights
+- **Needs:** Windows 11 (64-bit) and the free [VB-CABLE](https://vb-audio.com/Cable/) driver (see [step 1](#step-1--install-vb-cable))
+- **Also available:** a `.zip` with the same program plus the documentation
+- **Cost:** free and open source ([MIT license](LICENSE))
+- **Private:** works offline, no account, no tracking
 
 </td>
 </tr>
 </table>
 
-<a id="how-it-works"></a>
-## ⚙️ How it works
+> [!NOTE]
+> **About Windows security warnings.** From **v0.0.8**, the release is *digitally signed* (Authenticode), so Windows can
+> show who published it. Older versions (v0.0.7 and earlier) are **not** signed. A signature does not remove every
+> warning: Windows SmartScreen also looks at how many people have downloaded a file, so *“Windows protected your PC”*
+> can still appear for a new release. If that happens, see [Windows warns me when I start VoxShift](#windows-warns-me-when-i-start-voxshift).
+> The release also contains `SHA256SUMS.txt` so you can [check your download](#check-your-download-optional).
 
-VRChat can only record from a Windows **recording device**, and a normal application can't create one. The free
-VB-CABLE driver is the bridge, and VoxShift decides what goes into it:
+## 🤔 What is VoxShift?
 
-```mermaid
-flowchart LR
-    MIC["🎤 Your microphone"] --> MG["mic gate"]
-    APP["🎵 Spotify / browser / VLC"] -- "per-app capture" --> AG["app gate"]
-    APP -. "keeps playing normally" .-> HP["🎧 Your headphones"]
-    SB["🎛️ Soundboard<br/>your local files"] --> MIX
-    SB -- "Hear sounds myself" --> HP
-    MG --> MIX
-    AG --> MIX
-    POL{{"<b>Mix policy</b><br/>mode · talk over music<br/>auto-mute · sounds playing"}} -. "opens / closes" .-> MG
-    POL -. "opens / closes" .-> AG
-    MIX["<b>VoxShift mixer</b><br/>sum · limiter · meter"] --> CI["CABLE Input"]
-    CI == "VB-CABLE driver" ==> CO["CABLE Output"]
-    CO --> VRC["🥽 VRChat microphone"]
-```
+VRChat only listens to **one microphone**. That makes it awkward to play music for your friends, because VRChat can't
+hear your music, only what your microphone picks up.
 
-- Each source has a **transmit gate**. On every audio block (10 ms) the *mix policy* decides from the current mode,
-  *Talk over music*, *Auto-mute* and the mixer's real playback state which gates are open (see the table under
-  [Talk over music](#talk-over-music)). Gates move with short fades, so nothing clicks.
-- With Talk over music off, a gate only opens after the other one has fully closed, so microphone and music are never
-  mixed, not even during a switch. A closed source's buffered audio is discarded so it can never leak later.
-- Your physical microphone is never muted in Windows, so Discord and other apps keep working.
+VoxShift solves this. It creates a "virtual microphone" for VRChat and lets you decide, with one click, what goes into it:
 
-## 💻 Supported platforms and requirements
+- 🎤 **Your voice** (normal talking)
+- 🎵 **Music from one app**, such as Spotify, VLC or a web browser
+- 🎤🎵 **Both at once**, so you can talk over your music
+- 🎛️ **Sound effects** from a built-in soundboard (air horn, applause, jingles, …)
 
-| | |
+**Who is it for?** VRChat users who DJ, perform, host events, stream, or just like to play music and sounds for
+their friends, with a desktop or VR headset.
+
+## ✨ What you can do
+
+- **Switch with one click.** Choose *Microphone* or *Application* and VRChat hears the change instantly. No restart.
+- **Talk over music.** Turn on *Talk over music* and VRChat hears your voice and the music together, with separate volumes.
+- **Soundboard.** Drag audio files onto the soundboard and click a button to play them into VRChat. Your own files
+  are used where they are; nothing is copied.
+- **Automatic microphone muting.** While a sound plays, VoxShift mutes your microphone *for VRChat only*, and brings it
+  back when the sound ends. No more voice over the air horn.
+- **VR Controller Mode.** One simple window with big buttons you can hit with a VR controller.
+- **Safe volume.** A built-in limiter stops loud mixes from distorting.
+- **Runs quietly.** It can live in the system tray, and a global hotkey toggles between voice and music.
+
+<p align="center"><img src="docs/screenshots/main-ui.png" width="520" alt="VoxShift main window in application mode: live status, Microphone and Application buttons and the mixer"></p>
+<p align="center"><sub><b>The main window.</b> At the top you see what VRChat hears right now. Below it are the
+<b>Microphone / Application</b> switch and the mixer with one volume slider per source.</sub></p>
+
+## 🚀 Setup guide (about 10 minutes)
+
+You only have to do this once. You will need: Windows 11, VRChat, a microphone, and an internet connection for the
+downloads.
+
+### Step 1 · Install VB-CABLE
+
+VRChat can only listen to a *recording device*, and Windows programs can't create one on their own. **VB-CABLE** is a
+small, free driver by VB-Audio that adds a virtual cable: VoxShift sends audio into one end, VRChat listens at the other.
+
+1. Open <https://vb-audio.com/Cable/> and download **VBCABLE_Driver_Pack**.
+2. Open the downloaded `.zip` and **extract** it to a folder (right-click → *Extract All…*).
+3. In that folder, right-click **`VBCABLE_Setup_x64.exe`** → **Run as administrator**.
+4. Click **Install Driver**, then accept the Windows prompt.
+5. **Restart your computer.** The driver doesn't work until you do.
+6. After the restart, open *Settings → System → Sound* and check that your real devices are still selected:
+   **Output** = your headphones or speakers (*not* “CABLE Input”) and **Input** = your real microphone (*not* “CABLE Output”).
+   The installer sometimes changes these.
+
+You now have two new devices: **CABLE Input** (a playback device, where VoxShift sends audio) and **CABLE Output**
+(a recording device, which VRChat will listen to).
+
+> [!TIP]
+> VoxShift also works with VB-Audio's other virtual cables (CABLE-A to CABLE-D). The free single **VB-CABLE** is all you need.
+
+### Step 2 · Download and start VoxShift
+
+1. Open the **[latest release](https://github.com/crapclap161/voxshift/releases/latest)** and download
+   **`VoxShift-v…-win-x64-portable.exe`** from **Assets**.
+2. Move it to a folder you like, for example `C:\Tools\VoxShift\` or your Desktop.
+3. **Double-click** it. There is no installer. If Windows shows a blue *“Windows protected your PC”* window, see
+   [Windows warns me when I start VoxShift](#windows-warns-me-when-i-start-voxshift).
+
+Prefer the **ZIP**? Right-click it → *Extract All…*, then start `VoxShift.exe` from the extracted folder. Don't run it
+from inside the zip.
+
+### Step 3 · Choose your devices in VoxShift
+
+In the **Sources & devices** section of the main window (open by default):
+
+| Setting | What to choose |
 |---|---|
-| Operating system | **Windows 11 x64**. Application capture also works on Windows 10 build 20348 or newer. On older builds microphone mode still works. |
-| Virtual audio driver | [VB-CABLE](https://vb-audio.com/Cable/) (free/donationware, installed separately). VB-Audio's CABLE-A to CABLE-D and other virtual cables can be selected manually. |
-| Runtime | None. The release is a self-contained single-file executable. |
-| Permissions | Standard user. Administrator rights are only needed once, to install the VB-CABLE driver. |
-| VR | Any VR desktop overlay that forwards controller pointing as Windows mouse input (for VR Controller Mode). |
+| **Microphone** | Your real microphone. VoxShift shows *Capturing “…”* when it works. |
+| **Application to capture** | The program whose sound you want to share, for example **Spotify**. Start the program first, then press the **⟳** button (or **F5**) to refresh the list. Programs that are playing sound are marked with ▷. |
+| **VRChat output (virtual cable)** | Leave it on **Auto-detect**. It should show *Sending to “CABLE Input (VB-Audio Virtual Cable)”*. |
 
-<details>
-<summary><b>📖 Detailed setup guide</b></summary>
+<p align="center"><img src="docs/screenshots/application-picker-framed.png" width="340" alt="The application picker lists running programs, with the ones that are playing sound marked"></p>
 
-### 1. Install VB-CABLE
+If you see a message that no virtual cable was found, VB-CABLE isn't installed yet or you haven't restarted. Click
+**Setup help** for the built-in guide, install VB-CABLE, restart, then click **Retry now**.
 
-1. Download **VBCABLE_Driver_Pack** from <https://vb-audio.com/Cable/>.
-2. Extract it, right-click **`VBCABLE_Setup_x64.exe` → Run as administrator → Install Driver**, and **reboot**.
-3. In *Settings → System → Sound*, make sure the defaults are still your real devices. The installer sometimes changes them:
-   - **Output:** your headphones or speakers, *not* “CABLE Input”
-   - **Input:** your real microphone, *not* “CABLE Output”
+<p align="center"><img src="docs/screenshots/setup-help-framed.png" width="400" alt="The built-in setup guide"></p>
 
-| Device | Type | Used by |
-|---|---|---|
-| `CABLE Input (VB-Audio Virtual Cable)` | Playback | VoxShift writes into it (auto-detected) |
-| `CABLE Output (VB-Audio Virtual Cable)` | Recording | VRChat records from it |
+### Step 4 · Tell VRChat to listen to the virtual cable
 
-### 2. Configure VRChat (once)
-
-1. **Launch Pad → Settings → Audio & Voice → Microphone:** `CABLE Output (VB-Audio Virtual Cable)`
-2. For music: turn **Noise Suppression off**, and prefer toggle talk or an open mic over push-to-talk.
-3. Leave VRChat's microphone volume at 100 % and use VoxShift's sliders instead.
-
-<p align="center"><img src="docs/screenshots/setup-help-framed.png" width="420" alt="Built-in setup guide"></p>
-
-</details>
-
-## 🕹️ Usage
-
-| Action | How |
-|---|---|
-| Talk | **🎤 Microphone**, `Ctrl+1`, the tray menu, or the global hotkey |
-| Play an app into VRChat | Select the app, then **🎵 Application**, `Ctrl+2`, the tray menu, or the global hotkey |
-| Talk while the music plays | Turn on **Talk over music** (`Ctrl+T`, *Mixer* card, VR mode or tray) |
-| Add a sound effect | Drag an MP3 or WAV from Explorer onto the soundboard dock, or use **Add sounds** |
-| Play it into VRChat | Click its button. Your mic mutes itself while it plays (if *Auto-mute* is on) |
-| Stop all sounds | **Stop all** |
-| Show / hide the soundboard | **Soundboard** in the header or `Ctrl+B`; collapse it with **◀** |
-| Use it with a headset on | **VR mode** → large controls; **Full interface** to return |
-| Refresh the app list | ⟳ or `F5` |
-| Run in the background | Click **X** → **Minimize to Tray**, or set *When clicking the X button* to *Minimize to system tray* |
-| Quit completely | Click **X** → **Quit VoxShift**, or tray icon → **Exit VoxShift** |
-| Start hidden from a script or shortcut | `VoxShift.exe --minimized` |
-
-<p align="center"><img src="docs/screenshots/close-dialog.png" width="400" alt="Close dialog: Minimize to Tray, Quit VoxShift, Cancel and Remember my choice"></p>
-<p align="center"><sub>Clicking <b>X</b> asks what you want. Tick <i>Remember my choice</i>, or set it under
-<i>Preferences → When clicking the X button</i>.</sub></p>
-
-Settings are stored in `%APPDATA%\VoxShift\settings.json` and logs in `%LOCALAPPDATA%\VoxShift\logs`
-(open them with *Open log folder*). To uninstall, delete the program folder and those two directories.
-
-### Upgrading from v0.0.4 or older
-
-Just replace the EXE. Devices, volumes, hotkeys, window position, soundboard collections, file references and
-headphone monitoring settings are all kept. The soundboard moves into the dock (visible and expanded if you already
-use it), *Auto-mute* starts **on**, *Talk over music* starts **off**, and the full interface is shown.
-
-## ⚠️ Limitations
+1. Start VRChat.
+2. Open the **Launch Pad** → **Settings** → **Audio & Voice**.
+3. Set **Microphone** to **`CABLE Output (VB-Audio Virtual Cable)`**.
+4. Turn **Noise Suppression off**. It treats music as noise and makes it sound choppy.
+5. Leave VRChat's microphone volume at 100 % and use VoxShift's sliders instead.
 
 > [!IMPORTANT]
-> **Capture works per application, not per browser tab.** Windows captures audio per process tree, and browsers
-> play every tab through one audio process. Selecting Chrome sends *all* Chrome tabs. Play music in a second browser
-> or use a desktop app such as Spotify or VLC.
+> Because VRChat now listens to the virtual cable, **only what VoxShift sends** is heard by other players. In
+> *Microphone* mode that is your voice, so you talk as normal.
 
-- **DRM-protected playback** (some streaming sites) may be captured as silence.
-- **A virtual audio driver is required.** Windows has no driver-free way for an app to create a microphone.
-- **Exclusive-mode microphones** can't be captured while another program holds them exclusively.
-- **Elevated games:** if a focused program runs as administrator, Windows may not deliver the global hotkey to VoxShift.
-- **VR:** VR Controller Mode relies on your VR overlay's mouse emulation; there is no native OpenXR/SteamVR integration.
-- **Soundboard:** OGG/Opus files aren't supported by Windows' built-in decoders, and sounds longer than 5 minutes are
-  cut. Monitoring always uses the Windows default playback device. The dock always sits on the right of the window.
+### Step 5 · Test it
+
+1. In VoxShift, click **Microphone**. The top card should say **ON AIR · Microphone**. Speak: the **Output** meter moves.
+2. Ask a friend (or use a private instance) to confirm they hear you.
+3. Start music in Spotify, select Spotify in VoxShift and click **Application**. Your friend now hears the music.
+
+That's it. 🎉
+
+## 🕹️ Using VoxShift
+
+### Voice and music
+
+| I want to… | Do this |
+|---|---|
+| Talk normally | Click **Microphone** (or press `Ctrl+1`) |
+| Play music for everyone | Select the app, click **Application** (or `Ctrl+2`) |
+| Talk while the music plays | Click **Application**, then turn on **Talk over music** (or `Ctrl+T`) |
+| Go back to voice only | Click **Microphone** |
+| Switch from anywhere, even inside VRChat | Press the global hotkey, default **`Ctrl+Alt+M`** (it toggles between Microphone and Application; change it in *Preferences*) |
+| Change the volumes | Use the sliders in the **Mixer** card (0–200 % each). Lower the music a little so your voice stays clear. |
+
+The `Ctrl+…` shortcuts work while a VoxShift window is focused. Use the **Mixer** meters to check levels: if **LIMIT**
+lights up next to the *Output* meter, lower a volume slightly.
+
+**What does VRChat hear?** The top card always tells you, in plain words, for example *“ON AIR · Spotify. VRChat hears
+Spotify and your microphone.”* The four tiles show the current state of the microphone, the app, the soundboard and the
+VRChat connection.
+
+<p align="center"><img src="docs/screenshots/audio-mixing.png" width="520" alt="Live status and mixer with Talk over music on and the microphone muted while a sound plays"></p>
+<p align="center"><sub>Talk over music is on and a sound is playing: the music continues, and the microphone tile shows <b>MUTED</b>.</sub></p>
+
+> [!NOTE]
+> **VRChat can't tell browser tabs apart.** Windows shares audio per program, not per tab. Choosing Chrome shares *all*
+> Chrome tabs. For music, use a desktop app like Spotify or VLC, or a second browser.
+
+### Soundboard
+
+The soundboard is attached to the right side of the main window. Show or hide it with the **Soundboard** button at the
+top (or `Ctrl+B`).
+
+<p align="center"><img src="docs/screenshots/soundboard-docked-expanded.png" width="860" alt="The soundboard docked to the main window, with sound buttons, volume sliders and monitoring controls"></p>
+
+**Add sounds**
+
+1. Open the folder with your sound files in Windows Explorer.
+2. Drag one or more files (or a whole folder) onto the soundboard. It lights up when it's ready to receive them.
+3. Release. A button appears for each sound. If you had no soundboard yet, VoxShift creates one for you.
+
+You can also click **Add sounds** and choose files. Supported formats: **WAV, MP3, FLAC, M4A/AAC and WMA**. (OGG is not supported.)
+
+<p align="center"><img src="docs/screenshots/soundboard-drag-drop.png" width="380" alt="The soundboard highlights itself while files are dragged over it"></p>
+
+**Play and manage sounds**
+
+| I want to… | Do this |
+|---|---|
+| Play a sound | Click its button. Several sounds can play together. |
+| Stop one sound | Click the playing button again |
+| Stop all sounds | Click **Stop all** |
+| Rename, relink or remove a sound | Click **Edit**, then click the sound (or right-click it) |
+| Keep sounds in groups | Use the collection selector at the top: **＋** new, **✎** rename, **🗑** delete |
+| Hear the sounds myself | Keep **Hear sounds myself** on and set the **Headphones** volume |
+| Change how loud others hear them | **To VRChat** slider |
+| Make the panel small | Click **◀** in the soundboard header. Click **▶** to open it again. |
+
+> [!IMPORTANT]
+> VoxShift **never copies, moves, uploads or changes** your sound files. It plays them from where they are. Removing a
+> sound or a whole collection **does not delete the file**. If you later move or rename a file, its button shows a ⚠:
+> use **Edit** → click the sound → **Relink file…**
+
+### Automatic microphone muting
+
+With **Auto-mute mic during soundboard** on (the default), VoxShift mutes your microphone *in VRChat's audio only* while
+any sound plays, then restores it as soon as the last sound is finished. So you can keep talking, press the air horn,
+and nobody hears you talk over it.
+
+- Windows itself and other programs (Discord, …) are **not** muted. Only what VoxShift sends to VRChat changes.
+- **Stop all** and failed sounds also bring your voice back. It can't get stuck.
+- You still hear your own sounds in your headphones.
+- Turn it off in the **Mixer** card, in the soundboard panel (**Auto-mute mic on sounds**), in VR Controller Mode or from
+  the tray menu, if you'd rather talk over your sounds.
+
+### VR Controller Mode
+
+Pointing at small buttons with a VR controller is hard. **VR mode** replaces the main window and the soundboard with
+one simple window that has big buttons.
+
+<p align="center"><img src="docs/screenshots/vr-controller-mode.png" width="640" alt="VR Controller Mode with large Microphone and Application buttons, switches, status tiles and a grid of large sound buttons"></p>
+
+- Click **VR mode** in the header to turn it on. Click **Full interface** (or press `Esc`) to go back.
+- It contains the essentials: **Microphone / Application**, **Talk over music**, **Auto-mute**, your sound buttons and **Stop all**.
+- To use it in VR, show the VoxShift window in a **VR desktop overlay** (SteamVR's desktop view, OVR Toolkit, XSOverlay,
+  Virtual Desktop, …) and click it with the controller trigger.
+- Switching modes never interrupts the audio.
+
+> [!NOTE]
+> VR Controller Mode is a normal Windows window that works with the mouse pointer your overlay provides. VoxShift has
+> no direct SteamVR or OpenXR integration.
+
+### Window, tray and closing
+
+- When you click the **X** button, VoxShift asks whether to **minimize to the tray** (keeps running and routing audio)
+  or **quit**. Tick *Remember my choice* to stop being asked, or change it later under *Preferences → When clicking the X button*.
+- To quit completely: **X → Quit VoxShift**, or tray icon → **Exit VoxShift**.
+- Other options in **Preferences** (collapsed by default): always on top, start in the tray and the global hotkey.
+
+<p align="center"><img src="docs/screenshots/close-dialog.png" width="380" alt="The close dialog: Minimize to Tray, Quit VoxShift, Cancel and Remember my choice"></p>
+
+### Examples
+
+- **Chill music in a world.** Spotify selected → *Application*. Everyone hears the music; mic off. Turn on *Talk over music* to chat.
+- **DJ set.** *Application* + *Talk over music*. Lower the microphone slider to ~70 % so your announcements sit above the mix.
+- **Stream / event host.** Load a collection with an intro jingle, applause and an air horn. Click them as needed; your
+  voice pauses automatically for each sound.
+- **Quick switch.** Use the global hotkey to jump between talking and music without leaving VRChat.
 
 ## 🛠 Troubleshooting
 
-<details>
-<summary><b>Show common problems and fixes</b></summary>
+<details open>
+<summary><b>Common problems and fixes</b></summary>
 
-| Symptom | Fix |
+| Problem | What to do |
 |---|---|
-| *“No virtual audio cable found”* | Install VB-CABLE and reboot, then press **Retry now**. |
-| Nobody hears anything | VRChat's microphone must be **CABLE Output**, and VoxShift must show **ON AIR** with *VRChat: ONLINE*. Check that you aren't muted in VRChat. |
-| Others can't hear me in application mode | That's the classic switch. Turn on **Talk over music** to send your voice with the music. |
-| My voice disappears when I play a sound | That's **Auto-mute** (on by default). It returns when the sound ends. Turn it off to talk over sounds. |
-| My voice doesn't come back after a sound | Check the *Microphone* chip: *OFF* in application mode means Talk over music is off. Auto-mute always releases when the last sound ends, also after Stop all. |
-| I can't hear anything on my PC anymore | Your Windows default output is CABLE Input. Set your headphones as default (VoxShift warns about this). |
-| Others hear the music twice or with an echo | The music app outputs directly to *CABLE Input* (*Settings → Sound → Volume mixer*). Reset it to your headphones, and disable *“Listen to this device”* on CABLE Output. |
-| The soundboard dock is gone | Click **Soundboard** (Ctrl+B) in the header. If it is a slim strip, click its **▶** handle. |
-| Where did VoxShift go after I clicked X? | It is in the system tray (*Minimize to Tray*) and keeps routing audio. Tray icon → **Show VoxShift**. Choose *Quit VoxShift* (or tray → **Exit VoxShift**) to close it completely. |
-| I'm stuck in VR Controller Mode / can't find the window | Click **Full interface**, press Esc, or use the tray icon → **Show full interface**. |
-| The dock sits on top of the main window | The screen is too narrow (or the window is maximized). Restore the window or collapse the dock. |
-| The app shows *“is not running”* | Start the program and press ⟳. It's also picked up automatically once it starts. |
-| The application meter stays empty | The app isn't playing, plays DRM-protected content, or the sound comes from another process (e.g. the game instead of its launcher). |
-| *“Access denied”* when capturing an app | The target runs as administrator. Run both programs with the same privileges. |
-| Microphone error mentions *exclusive mode* | Microphone → Properties → Advanced → untick *Allow applications to take exclusive control*. |
-| Microphone access denied | *Settings → Privacy & security → Microphone* → allow **desktop apps**. |
-| Music sounds choppy in VRChat | Turn off VRChat's Noise Suppression. Lower a volume if **LIMIT** is lit. |
-| The hotkey doesn't register | Another program uses it. Click the hotkey box and press a different combination. |
-| A soundboard button shows ⚠ | The file was moved, renamed or deleted. **Edit** → click it → **Relink file…** |
-| I don't hear soundboard sounds myself | Enable **Hear sounds myself** and raise *Headphones*. Make sure your headphones are the Windows default playback device (not CABLE Input). |
-| *“Unsupported format”* when dropping | Convert the file to WAV, MP3, FLAC, M4A/AAC or WMA (OGG/Opus isn't supported). |
-| Anything else | Use **Open log folder** and check `VoxShift.log`, then [open an issue](https://github.com/crapclap161/voxshift/issues). |
+| **“No virtual audio cable found”** | Install [VB-CABLE](https://vb-audio.com/Cable/), **restart Windows**, then click **Retry now** in VoxShift. |
+| **Nobody hears anything** | In VRChat, the microphone must be **CABLE Output (VB-Audio Virtual Cable)**. In VoxShift the top card must say **ON AIR** and the *VRChat* tile **ONLINE**. Also check you aren't muted in VRChat. |
+| **Others don't hear me in Application mode** | That's normal: Application mode sends only the music. Turn on **Talk over music**. |
+| **My voice disappears when I play a sound** | That's **Auto-mute**. Your voice returns when the sound ends. Turn Auto-mute off to talk over sounds. |
+| **I can't hear anything on my PC** | Your Windows default output was switched to *CABLE Input*. In *Settings → System → Sound* set your headphones or speakers as the output. |
+| **Others hear the music twice or an echo** | The music app is set to play into *CABLE Input* directly. In *Settings → System → Sound → Volume mixer* set the app back to your headphones, and make sure “Listen to this device” is off for *CABLE Output*. |
+| **The application isn't in the list / “is not running”** | Start the program, play something, then press **⟳** or **F5**. |
+| **The app's meter stays empty** | The app isn't playing sound, plays copy-protected (DRM) content, or the sound comes from another process. |
+| **“Access denied” when sharing an app** | That app runs as administrator. Run VoxShift and the app with the same rights. |
+| **Music sounds choppy or robotic in VRChat** | Turn **Noise Suppression off** in VRChat. If **LIMIT** is lit, lower a volume. |
+| **Microphone error or “exclusive mode”** | Windows *Sound settings* → your microphone → *Properties → Advanced* → untick *Allow applications to take exclusive control*. |
+| **Microphone access denied** | *Settings → Privacy & security → Microphone* → allow **desktop apps** to use the microphone. |
+| **The soundboard has disappeared** | Click **Soundboard** (or `Ctrl+B`). If it's a narrow strip, click its **▶** handle. |
+| **A sound button shows ⚠** | The file was moved, renamed or deleted. **Edit** → click the sound → **Relink file…** |
+| **“Unsupported format” when dropping a file** | Convert it to WAV, MP3, FLAC, M4A/AAC or WMA. |
+| **I can't hear my own sounds** | Turn on **Hear sounds myself** and raise **Headphones**. Your headphones must be the Windows default output (not CABLE Input). |
+| **VoxShift disappeared after clicking X** | It's in the system tray. Click the tray icon → **Show VoxShift**. |
+| **Stuck in VR Controller Mode** | Click **Full interface**, press `Esc`, or use the tray icon → **Show full interface**. |
+| **The hotkey does nothing** | Another program uses it. Click the hotkey box in *Preferences* and press a different combination. Programs running as administrator may block global hotkeys. |
+| **Anything else** | Click **Open log folder** in *Preferences*, look at `VoxShift.log`, and [open an issue](https://github.com/crapclap161/voxshift/issues/new/choose). |
 
 </details>
+
+### Windows warns me when I start VoxShift
+
+*“Windows protected your PC”* (SmartScreen) is shown for programs Windows hasn't seen often. This is **not** an error
+and doesn't mean the file is infected, but you should only continue if you downloaded VoxShift from the
+[official releases page](https://github.com/crapclap161/voxshift/releases).
+
+1. Click **More info**.
+2. Check the *Publisher*. For v0.0.8 and newer it should show the publisher name VoxShift is signed with. Versions
+   v0.0.7 and older show *Unknown publisher* because they are unsigned.
+3. Click **Run anyway**.
+
+If you extracted the ZIP, you can avoid the prompt for every file: right-click the `.zip` **before** extracting →
+*Properties* → tick **Unblock** → *OK*.
+
+**Code-signing status:** releases from v0.0.8 on are signed with a certificate issued through Microsoft Artifact
+Signing, with a trusted timestamp. A signature proves who published the file and that it wasn't changed afterwards;
+it does **not** guarantee that SmartScreen stays silent, because reputation also builds up over time. Maintainers can
+read how it is set up in [docs/code-signing.md](docs/code-signing.md).
+
+### Check your download (optional)
+
+Every release includes `SHA256SUMS.txt`. In PowerShell, in the folder with your download:
+
+```powershell
+Get-FileHash .\VoxShift-v0.0.8-win-x64-portable.exe -Algorithm SHA256
+```
+
+The hash must equal the one listed for that file name in `SHA256SUMS.txt`. For signed releases you can also see the
+signature with:
+
+```powershell
+Get-AuthenticodeSignature .\VoxShift-v0.0.8-win-x64-portable.exe | Format-List
+```
+
+`Status` should be `Valid`. (Use the file name of the version you downloaded.)
+
+## ❓ Good to know
+
+- **Windows:** Windows 11 x64 is recommended. Sharing an application's sound also works on Windows 10 build 20348 or
+  newer; on older builds only microphone mode works.
+- **Admin rights** are only needed once, to install VB-CABLE. VoxShift itself runs as a normal user.
+- **Settings** are stored in `%APPDATA%\VoxShift\settings.json` and logs in `%LOCALAPPDATA%\VoxShift\logs`. Updating is
+  just replacing the EXE; your settings, soundboards and hotkeys are kept.
+- **Uninstall:** delete the VoxShift file or folder and those two folders. VB-CABLE is removed separately, using the
+  uninstaller from its download (`VBCABLE_Setup_x64.exe` → *Remove Driver*).
+- **Limits:** capture is per application, not per browser tab. Copy-protected (DRM) audio may be silent. Sounds are
+  cut at 5 minutes each (use Application mode for long music). Hearing your own sounds uses the Windows default output.
+- **Command line:** `VoxShift.exe --minimized` starts it hidden in the tray.
 
 ## 🔒 Privacy
 
-Audio is processed in memory and only sent to the local virtual cable. Sound files are read from where they are and
-never copied or uploaded. VoxShift makes no network connections and has no telemetry. Links in the app (VB-CABLE
+VoxShift works completely offline: no network connections, no account and no telemetry. Audio stays in memory and
+goes only to your local virtual cable. Sound files are read from where they are. Links inside the app (VB-CABLE
 website, Windows sound settings) only open when you click them.
 
-## 🧑‍💻 Development
+## 🤝 Help, feedback and contributing
 
-Requires the **.NET 10 SDK** (see `global.json`). Building works on Windows, Linux and macOS
-(`EnableWindowsTargeting`). Running requires Windows.
-
-```bash
-dotnet restore VoxShift.sln
-```
-
-```bash
-dotnet build VoxShift.sln -c Release
-```
-
-```bash
-dotnet test tests/VoxShift.Core.Tests
-```
-
-```bash
-dotnet format VoxShift.sln --verify-no-changes
-```
-
-```bash
-dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
-```
-
-`publish/VoxShift.exe` is the self-contained single-file build (about 75 MB, including the .NET and WPF runtimes).
-
-<details>
-<summary><b>Project structure</b></summary>
-
-```
-VoxShift.sln
-Directory.Build.props          version (single source of truth), shared build settings
-src/
-  VoxShift.Core/               platform-independent and unit tested: router with transmit gates and the mix
-                               policy (talk over music, soundboard auto-mute), soundboard mixer and library,
-                               WAV decoder, resampler, limiter, dock geometry, settings, logging, hotkeys
-  VoxShift.Audio/              Windows audio: WASAPI capture/render (NAudio), process-loopback COM
-                               interop, device monitoring, self-healing AudioEngine, soundboard
-                               player (Media Foundation decoding, clip cache)
-  VoxShift/                    WPF app (Fluent dark theme): view models, main window, soundboard dock window
-                               and its controller, VR Controller window, tray, global hotkey
-tests/VoxShift.Core.Tests/     xUnit tests (behaviour matrix, auto-mute timing, leakage, limiter, routing,
-                               soundboard, settings migration, dock placement, …)
-scripts/                       package.ps1 (portable EXE, ZIP, checksums), smoke-test.ps1
-.github/workflows/             ci.yml, release.yml, screenshots.yml
-docs/                          screenshots, release notes, image tooling
-```
-
-Command-line switches: `--minimized`, `--smoke-test <report>` (used by CI), and `--render-screenshots <dir>`
-(used by the screenshots workflow, which renders the real windows with sample data).
-
-</details>
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and quality checks.
-
-## 📦 Releases
-
-VoxShift uses [Semantic Versioning](https://semver.org). The version lives in `Directory.Build.props`
-(`<VersionPrefix>`). To release: run the **Screenshots** workflow on the release branch (it commits fresh screenshots),
-then push a matching tag `vX.Y.Z`. That runs `.github/workflows/release.yml`, which validates the version, changelog,
-release notes and screenshots, then builds, tests, smoke-tests and packages the app and publishes a GitHub Release with
-the portable `VoxShift-vX.Y.Z-win-x64-portable.exe`, `VoxShift-vX.Y.Z-win-x64.zip` and `SHA256SUMS.txt`. See
-[CHANGELOG.md](CHANGELOG.md) for the history.
+- 🐛 **Found a bug?** [Open a bug report](https://github.com/crapclap161/voxshift/issues/new/choose). It helps to say
+  your Windows version, the VoxShift version and what you clicked, and to attach `VoxShift.log` (*Preferences → Open log folder*).
+- 💡 **Idea?** [Suggest a feature](https://github.com/crapclap161/voxshift/issues/new/choose).
+- 🔐 **Security problem?** Please report it privately, see [SECURITY.md](SECURITY.md).
+- 🧑‍💻 **Want to help?** Read [CONTRIBUTING.md](CONTRIBUTING.md).
+- 📦 **All versions:** [Releases](https://github.com/crapclap161/voxshift/releases) · [Changelog](CHANGELOG.md)
 
 ## 📄 License
 
@@ -559,3 +367,74 @@ the portable `VoxShift-vX.Y.Z-win-x64-portable.exe`, `VoxShift-vX.Y.Z-win-x64.zi
 <p align="center"><sub>
 VoxShift is an independent project. It is not affiliated with or endorsed by VRChat Inc. or VB-Audio Software.
 </sub></p>
+
+---
+
+## 🧑‍💻 For developers
+
+<details>
+<summary><b>Build, test, project structure and releases</b></summary>
+
+### How it works (short version)
+
+VoxShift captures your microphone, optionally one application's audio (Windows *process loopback*) and plays soundboard
+files, mixes the sources that should be heard, passes them through a −1 dBFS peak limiter, and writes the result to
+*CABLE Input*; VRChat records from *CABLE Output*. A *mix policy* (mode, talk over music, auto-mute, whether sounds are
+playing) opens and closes a transmit gate per source with short fades, and with Talk over music off, microphone and
+application audio are never mixed.
+
+### Build
+
+Requires the **.NET 10 SDK** (see `global.json`). Building works on Windows, Linux and macOS
+(`EnableWindowsTargeting`); running requires Windows.
+
+```bash
+dotnet restore VoxShift.sln
+```
+
+```bash
+dotnet format VoxShift.sln --verify-no-changes --no-restore
+```
+
+```bash
+dotnet build VoxShift.sln -c Release
+```
+
+```bash
+dotnet test tests/VoxShift.Core.Tests -c Release
+```
+
+```bash
+dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
+```
+
+`publish/VoxShift.exe` is the self-contained single-file build (about 75 MB, including the .NET and WPF runtimes).
+
+### Project structure
+
+```
+Directory.Build.props          product version (single source of truth), shared build settings
+src/VoxShift.Core/             platform-independent, unit tested: router, mix policy, soundboard mixer and library,
+                               resampler, limiter, dock geometry, settings, logging, hotkeys
+src/VoxShift.Audio/            Windows audio: WASAPI capture/render (NAudio), process-loopback interop, devices, engine
+src/VoxShift/                  WPF app: design system (Themes/Theme.xaml), views, view models, tray, hotkey
+tests/VoxShift.Core.Tests/     xUnit tests
+scripts/                       package.ps1, smoke-test.ps1, verify-signature.ps1
+.github/workflows/             ci.yml, release.yml, screenshots.yml
+docs/                          screenshots, release notes, code-signing guide
+```
+
+Command-line switches: `--minimized`, `--smoke-test <report>` (CI) and `--render-screenshots <dir>` (the screenshots
+workflow, which renders the real windows with sample data).
+
+### Releases
+
+The version lives in `Directory.Build.props` (`<VersionPrefix>`); every release needs a matching `CHANGELOG.md` entry and
+`docs/release-notes/vX.Y.Z.md`. To release: run the **Screenshots** workflow on the release branch (it commits fresh
+screenshots), then push the tag `vX.Y.Z` (or run **Release** manually with the tag). The release workflow builds, tests,
+**signs** `VoxShift.exe`, verifies the signature, smoke-tests the signed file, packages it, verifies the packaged files
+and checksums, and publishes `VoxShift-vX.Y.Z-win-x64-portable.exe`, `VoxShift-vX.Y.Z-win-x64.zip` and
+`SHA256SUMS.txt`. Signing needs one-time owner setup, described in [docs/code-signing.md](docs/code-signing.md); without
+it the release workflow stops before publishing.
+
+</details>

@@ -6,6 +6,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-11-13
+
+**Beginner-friendly documentation and signed Windows releases.** No change to the application, its audio routing or
+its settings; the executable differs from v0.0.7 only in its version number and its Authenticode signature.
+
+### Added
+- **Authenticode code signing** in the release pipeline using Microsoft Artifact Signing with GitHub OIDC (no stored
+  signing secrets, no private key in the repository). `VoxShift.exe` is signed with an RFC 3161 timestamp *before*
+  packaging, so the portable EXE and the EXE inside the ZIP are the same signed file, and `SHA256SUMS.txt` is generated
+  after signing.
+- `scripts/verify-signature.ps1`: rejects unsigned, self-signed, untrusted or un-timestamped binaries (Windows
+  `Valid` status, Code Signing EKU, timestamp, `signtool verify /pa`, optional publisher pin).
+- `docs/code-signing.md`: design, exact owner setup steps (Azure account, identity validation, certificate profile,
+  Entra federated credential, repository variables) and maintenance.
+- CI negative test: the signature gate must reject the unsigned CI build.
+
+### Changed
+- The release workflow refuses to publish unless signing is configured, the signature on the portable EXE and on the
+  EXE inside the ZIP verifies, both files are identical and the checksums match. Releases run in the
+  `release-signing` environment and request an OIDC token only for the signing step.
+- **README rewritten** for newcomers: a prominent download section, step-by-step Windows installation (including
+  VB-CABLE and its reboot), a first-time setup walkthrough for the microphone, application, virtual cable and the
+  VRChat microphone, usage examples, a shorter feature tour, troubleshooting and an accurate description of the
+  Windows security warning and signing status. Developer details moved to the end.
+
 ## [0.0.7] - 2026-11-11
 
 **UI/UX Overhaul.** A redesigned interface for every window, built on one shared design system. No audio, routing or

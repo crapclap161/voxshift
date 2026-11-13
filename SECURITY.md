@@ -14,4 +14,5 @@ VoxShift version, Windows build, steps to reproduce, and the expected and actual
 
 VoxShift runs as a normal user, needs no administrator rights, makes no network connections, and only writes to
 `%APPDATA%\VoxShift` (settings) and `%LOCALAPPDATA%\VoxShift\logs` (log). Release binaries are built by GitHub
-Actions from tagged sources and published with SHA-256 checksums (`SHA256SUMS.txt`).
+Actions from tagged sources and published with SHA-256 checksums (`SHA256SUMS.txt`). From v0.0.8 on, releases are
+Authenticode-signed (see [docs/code-signing.md](docs/code-signing.md)); v0.0.7 and older are unsigned.

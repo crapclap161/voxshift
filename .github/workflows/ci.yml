@@ -74,6 +74,15 @@ jobs:
         shell: pwsh
         run: ./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion ${{ steps.version.outputs.version }}
 
+      # CI builds are never signed (no signing credentials are available to pull requests). Prove that the release
+      # signature gate really rejects an unsigned binary, so it can't silently pass in the release workflow.
+      - name: Signature gate rejects unsigned builds
+        shell: pwsh
+        run: |
+          $rejected = $false
+          try { ./scripts/verify-signature.ps1 -Path publish/VoxShift.exe } catch { $rejected = $true; Write-Host "Rejected as expected: $($_.Exception.Message)" }
+          if (-not $rejected) { throw 'verify-signature.ps1 accepted an unsigned executable.' }
+
       - name: Package
         shell: pwsh
         run: ./scripts/package.ps1 -Version ${{ steps.version.outputs.version }} -PublishDir publish -OutputDir dist
