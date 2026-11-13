@@ -29,14 +29,14 @@ involved.
 
    | Secret name | Value |
    |---|---|
-   | `VOXSHIFT_SIGNING_KEY` (alias: `WINDOWS_CODESIGN_PFX_BASE64`) | the entire content of `WINDOWS_CODESIGN_PFX_BASE64.txt`, i.e. the Base64-encoded `.pfx`. The release uses `VOXSHIFT_SIGNING_KEY` when it exists, otherwise `WINDOWS_CODESIGN_PFX_BASE64`. |
-   | `WINDOWS_CODESIGN_PFX_PASSWORD` | the password you chose |
+   | `WINDOWS_CODESIGN_PFX_BASE64` | the entire content of `WINDOWS_CODESIGN_PFX_BASE64.txt` |
+   | `VOXSHIFT_SIGNING_KEY` | the PFX **password** you chose (alias: `WINDOWS_CODESIGN_PFX_PASSWORD`; the release uses `VOXSHIFT_SIGNING_KEY` when it exists) |
 
    Prefer the command line? With the [GitHub CLI](https://cli.github.com/) (`gh auth login` once):
 
    ```powershell
    Get-Content -Raw "$HOME\Documents\VoxShift-signing\WINDOWS_CODESIGN_PFX_BASE64.txt" | gh secret set WINDOWS_CODESIGN_PFX_BASE64 --repo crapclap161/voxshift
-   gh secret set WINDOWS_CODESIGN_PFX_PASSWORD --repo crapclap161/voxshift
+   gh secret set VOXSHIFT_SIGNING_KEY --repo crapclap161/voxshift
    ```
 
    (The second command prompts for the value.) Already have a `.pfx`? Produce the Base64 value yourself:
