@@ -109,8 +109,9 @@ jobs:
       - name: Verify signature of the published executable
         shell: pwsh
         run: |
-          $mode = if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { '-TrustSelfSigned' } else { '-RequirePublicTrust' }
-          ./scripts/verify-signature.ps1 -Path publish/VoxShift.exe -ExpectedPublicKeySha256 '${{ steps.cert.outputs.key_sha256 }}' -RequireTimestamp $mode
+          $v = @{ Path = 'publish/VoxShift.exe'; ExpectedPublicKeySha256 = '${{ steps.cert.outputs.key_sha256 }}'; RequireTimestamp = $true }
+          if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { $v.TrustSelfSigned = $true } else { $v.RequirePublicTrust = $true }
+          ./scripts/verify-signature.ps1 @v
 
       # The smoke test runs the SIGNED binary, so a signature that breaks the single-file bundle is caught here.
       - name: Smoke test (signed executable)
@@ -132,8 +133,9 @@ jobs:
           Expand-Archive $zip -DestinationPath $extract -Force
           $zipExe = Get-ChildItem $extract -Recurse -Filter VoxShift.exe | Select-Object -First 1
           if (-not $zipExe) { throw 'VoxShift.exe not found inside the ZIP.' }
-          $mode = if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { '-TrustSelfSigned' } else { '-RequirePublicTrust' }
-          ./scripts/verify-signature.ps1 -Path $portable, $zipExe.FullName -ExpectedPublicKeySha256 '${{ steps.cert.outputs.key_sha256 }}' -RequireTimestamp $mode
+          $v = @{ Path = @($portable, $zipExe.FullName); ExpectedPublicKeySha256 = '${{ steps.cert.outputs.key_sha256 }}'; RequireTimestamp = $true }
+          if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { $v.TrustSelfSigned = $true } else { $v.RequirePublicTrust = $true }
+          ./scripts/verify-signature.ps1 @v
           if ((Get-FileHash $portable).Hash -ne (Get-FileHash $zipExe.FullName).Hash) { throw 'Portable EXE and the EXE inside the ZIP differ.' }
           # SHA256SUMS.txt must describe exactly the files that are about to be uploaded.
           $lines = Get-Content dist/SHA256SUMS.txt
