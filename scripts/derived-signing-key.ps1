@@ -97,10 +97,12 @@ function New-DerivedSigningCertificate {
     $d = Get-DerivedPrivateScalar $Passphrase
     $q = Get-PublicPoint $d
     $ecParameters = New-Object Security.Cryptography.ECParameters
-    $ecParameters.Curve = [Security.Cryptography.ECCurve]::NamedCurves.nistP256
+    $ecParameters.Curve = [Security.Cryptography.ECCurve+NamedCurves]::nistP256
     $ecParameters.D = ConvertTo-BigEndian32 $d
-    $ecParameters.Q.X = ConvertTo-BigEndian32 $q.X
-    $ecParameters.Q.Y = ConvertTo-BigEndian32 $q.Y
+    $point = New-Object Security.Cryptography.ECPoint   # a struct: assign it whole, not field by field
+    $point.X = ConvertTo-BigEndian32 $q.X
+    $point.Y = ConvertTo-BigEndian32 $q.Y
+    $ecParameters.Q = $point
     $ecdsa = [Security.Cryptography.ECDsa]::Create($ecParameters)
     try {
         $request = New-Object Security.Cryptography.X509Certificates.CertificateRequest -ArgumentList @($Subject, $ecdsa, [Security.Cryptography.HashAlgorithmName]::SHA256)

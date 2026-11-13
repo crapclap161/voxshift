@@ -86,7 +86,7 @@ try {
     . (Join-Path $scripts 'derived-signing-key.ps1')
     $hex = { param($b) ([BitConverter]::ToString([byte[]]$b)) -replace '-', '' }
     foreach ($round in 1..3) {   # the point arithmetic must agree with .NET's own key generation
-        $ref = [Security.Cryptography.ECDsa]::Create([Security.Cryptography.ECCurve]::NamedCurves.nistP256)
+        $ref = [Security.Cryptography.ECDsa]::Create([Security.Cryptography.ECCurve+NamedCurves]::nistP256)
         $ep = $ref.ExportParameters($true)
         $point = Get-PublicPoint (ConvertFrom-BigEndian $ep.D)
         if ((& $hex (ConvertTo-BigEndian32 $point.X)) -ne (& $hex $ep.Q.X) -or (& $hex (ConvertTo-BigEndian32 $point.Y)) -ne (& $hex $ep.Q.Y)) { throw 'Derived public key does not match .NET elliptic-curve maths.' }
