@@ -40,7 +40,7 @@ jobs:
         id: cert
         shell: pwsh
         env:
-          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.VOXSHIFT_SIGNING_KEY || secrets.WINDOWS_CODESIGN_PFX_BASE64 }} # VOXSHIFT_SIGNING_KEY = Base64 .pfx
           WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
           WINDOWS_CODESIGN_THUMBPRINT: ${{ vars.WINDOWS_CODESIGN_THUMBPRINT }} # optional pin
         run: ./scripts/sign-executable.ps1 -ValidateOnly
@@ -94,7 +94,7 @@ jobs:
       - name: Sign VoxShift.exe (Authenticode, SHA-256, RFC 3161 timestamp)
         shell: pwsh
         env:
-          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.VOXSHIFT_SIGNING_KEY || secrets.WINDOWS_CODESIGN_PFX_BASE64 }} # VOXSHIFT_SIGNING_KEY = Base64 .pfx
           WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
           WINDOWS_CODESIGN_THUMBPRINT: ${{ vars.WINDOWS_CODESIGN_THUMBPRINT }}
         run: ./scripts/sign-executable.ps1 -Path publish/VoxShift.exe

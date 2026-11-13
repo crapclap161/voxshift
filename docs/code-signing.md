@@ -29,7 +29,7 @@ involved.
 
    | Secret name | Value |
    |---|---|
-   | `WINDOWS_CODESIGN_PFX_BASE64` | the entire content of `WINDOWS_CODESIGN_PFX_BASE64.txt` |
+   | `VOXSHIFT_SIGNING_KEY` (alias: `WINDOWS_CODESIGN_PFX_BASE64`) | the entire content of `WINDOWS_CODESIGN_PFX_BASE64.txt`, i.e. the Base64-encoded `.pfx`. The release uses `VOXSHIFT_SIGNING_KEY` when it exists, otherwise `WINDOWS_CODESIGN_PFX_BASE64`. |
    | `WINDOWS_CODESIGN_PFX_PASSWORD` | the password you chose |
 
    Prefer the command line? With the [GitHub CLI](https://cli.github.com/) (`gh auth login` once):
