@@ -28,6 +28,12 @@ jobs:
         with:
           dotnet-version: "10.0.1xx"
 
+      - name: No key material in the repository
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -Ei '\.(pfx|p12|pvk|snk|key)$|codesign.*base64'; then echo "Signing keys must never be committed."; exit 1; fi
+          if git grep -nIE -e '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- . ':!.github/workflows/ci.yml'; then echo "Private key material found."; exit 1; fi
+
       - name: Restore
         run: dotnet restore VoxShift.sln
 
@@ -74,14 +80,13 @@ jobs:
         shell: pwsh
         run: ./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion ${{ steps.version.outputs.version }}
 
-      # CI builds are never signed (no signing credentials are available to pull requests). Prove that the release
-      # signature gate really rejects an unsigned binary, so it can't silently pass in the release workflow.
-      - name: Signature gate rejects unsigned builds
-        shell: pwsh
-        run: |
-          $rejected = $false
-          try { ./scripts/verify-signature.ps1 -Path publish/VoxShift.exe } catch { $rejected = $true; Write-Host "Rejected as expected: $($_.Exception.Message)" }
-          if (-not $rejected) { throw 'verify-signature.ps1 accepted an unsigned executable.' }
+      # CI builds are never signed with the release key (pull requests have no access to secrets). Instead the whole
+      # signing toolchain is exercised with a throwaway certificate created on the fly: sign, verify, smoke-test the
+      # signed binary, and prove that unsigned, tampered, wrong-certificate and publicly-untrusted inputs are rejected.
+      # Windows PowerShell 5.1 on purpose: it is what a maintainer runs the certificate script with.
+      - name: Signing tooling test (throwaway certificate)
+        shell: powershell
+        run: ./scripts/test-signing.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion ${{ steps.version.outputs.version }}
 
       - name: Package
         shell: pwsh

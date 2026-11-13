@@ -23,7 +23,14 @@ coverage*/
 .env
 .env.*
 *.pfx
+*.p12
+*.pvk
 *.snk
+*.key
+# Code-signing material (docs/code-signing.md). The public .cer is safe to share; keys and Base64 secrets are not.
+VoxShift-signing/
+WINDOWS_CODESIGN_*.txt
+*_BASE64.txt
 appsettings.*.local.json
 
 # Python tooling cache (docs/tools)

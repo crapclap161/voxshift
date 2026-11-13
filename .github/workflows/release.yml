@@ -15,8 +15,7 @@ on:
         required: true
 
 permissions:
-  contents: write # create the release and upload assets (GITHUB_TOKEN)
-  id-token: write # short-lived OIDC token for code signing (no stored signing secrets; see docs/code-signing.md)
+  contents: write # create the release and upload assets (GITHUB_TOKEN). No cloud identity is used.
 
 concurrency:
   group: release-${{ github.ref }}
@@ -30,30 +29,21 @@ jobs:
   release:
     name: Build, sign & publish ${{ inputs.tag || github.ref_name }}
     runs-on: windows-2025
-    # Only this environment may request signing: the Entra federated credential is bound to it (docs/code-signing.md).
-    environment: release-signing
-    env:
-      # Non-secret identifiers, configured as repository (or environment) VARIABLES. No signing secret exists.
-      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      SIGNING_ENDPOINT: ${{ vars.SIGNING_ENDPOINT }}
-      SIGNING_ACCOUNT: ${{ vars.SIGNING_ACCOUNT }}
-      SIGNING_CERTIFICATE_PROFILE: ${{ vars.SIGNING_CERTIFICATE_PROFILE }}
-      SIGNING_PUBLISHER: ${{ vars.SIGNING_PUBLISHER }} # optional: text the signer certificate subject must contain
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Require code-signing configuration
+      # Fail fast, before building anything: releases are never published unsigned. The two secrets are exposed to
+      # the signing steps only (not job-wide), so no other step or third-party action can read them.
+      - name: Validate signing certificate (secrets)
+        id: cert
         shell: pwsh
-        run: |
-          # Releases are never published unsigned: fail fast, before building, if signing is not configured.
-          $required = 'AZURE_CLIENT_ID', 'AZURE_TENANT_ID', 'AZURE_SUBSCRIPTION_ID', 'SIGNING_ENDPOINT', 'SIGNING_ACCOUNT', 'SIGNING_CERTIFICATE_PROFILE'
-          $missing = $required | Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
-          if ($missing) { throw "Code signing is not configured. Missing repository variables: $($missing -join ', '). See docs/code-signing.md. Refusing to publish an unsigned release." }
-          if (-not $env:SIGNING_ENDPOINT.StartsWith('https://')) { throw 'SIGNING_ENDPOINT must be an https:// URL.' }
+        env:
+          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+          WINDOWS_CODESIGN_THUMBPRINT: ${{ vars.WINDOWS_CODESIGN_THUMBPRINT }} # optional pin
+        run: ./scripts/sign-executable.ps1 -ValidateOnly
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -101,40 +91,26 @@ jobs:
       - name: Publish (self-contained, single file)
         run: dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
 
-      - name: Azure login (OIDC, short-lived token)
-        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
-        with:
-          client-id: ${{ env.AZURE_CLIENT_ID }}
-          tenant-id: ${{ env.AZURE_TENANT_ID }}
-          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+      - name: Sign VoxShift.exe (Authenticode, SHA-256, RFC 3161 timestamp)
+        shell: pwsh
+        env:
+          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
+          WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}
+          WINDOWS_CODESIGN_THUMBPRINT: ${{ vars.WINDOWS_CODESIGN_THUMBPRINT }}
+        run: ./scripts/sign-executable.ps1 -Path publish/VoxShift.exe
 
-      - name: Sign VoxShift.exe (Microsoft Artifact Signing, RFC 3161 timestamp)
-        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
-        with:
-          endpoint: ${{ env.SIGNING_ENDPOINT }}
-          signing-account-name: ${{ env.SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ env.SIGNING_CERTIFICATE_PROFILE }}
-          files: ${{ github.workspace }}\publish\VoxShift.exe
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
-          description: VoxShift
-          description-url: https://github.com/crapclap161/voxshift
-          # Only the OIDC-backed Azure CLI session may be used.
-          exclude-environment-credential: true
-          exclude-workload-identity-credential: true
-          exclude-managed-identity-credential: true
-          exclude-shared-token-cache-credential: true
-          exclude-visual-studio-credential: true
-          exclude-visual-studio-code-credential: true
-          exclude-azure-cli-credential: false
-          exclude-azure-powershell-credential: true
-          exclude-azure-developer-cli-credential: true
-          exclude-interactive-browser-credential: true
+      - name: Remove signing certificate from the runner
+        if: always()
+        shell: pwsh
+        run: ./scripts/sign-executable.ps1 -Cleanup
 
+      # A self-signed certificate is verified for integrity and for being THE expected certificate; it is never
+      # reported as publicly trusted. A publicly trusted certificate must instead be trusted by Windows on its own.
       - name: Verify signature of the published executable
         shell: pwsh
-        run: ./scripts/verify-signature.ps1 -Path publish/VoxShift.exe -ExpectedSubject $env:SIGNING_PUBLISHER
+        run: |
+          $mode = if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { '-TrustSelfSigned' } else { '-RequirePublicTrust' }
+          ./scripts/verify-signature.ps1 -Path publish/VoxShift.exe -ExpectedThumbprint '${{ steps.cert.outputs.thumbprint }}' -RequireTimestamp $mode
 
       # The smoke test runs the SIGNED binary, so a signature that breaks the single-file bundle is caught here.
       - name: Smoke test (signed executable)
@@ -156,7 +132,8 @@ jobs:
           Expand-Archive $zip -DestinationPath $extract -Force
           $zipExe = Get-ChildItem $extract -Recurse -Filter VoxShift.exe | Select-Object -First 1
           if (-not $zipExe) { throw 'VoxShift.exe not found inside the ZIP.' }
-          ./scripts/verify-signature.ps1 -Path $portable, $zipExe.FullName -ExpectedSubject $env:SIGNING_PUBLISHER
+          $mode = if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { '-TrustSelfSigned' } else { '-RequirePublicTrust' }
+          ./scripts/verify-signature.ps1 -Path $portable, $zipExe.FullName -ExpectedThumbprint '${{ steps.cert.outputs.thumbprint }}' -RequireTimestamp $mode
           if ((Get-FileHash $portable).Hash -ne (Get-FileHash $zipExe.FullName).Hash) { throw 'Portable EXE and the EXE inside the ZIP differ.' }
           # SHA256SUMS.txt must describe exactly the files that are about to be uploaded.
           $lines = Get-Content dist/SHA256SUMS.txt
@@ -165,7 +142,34 @@ jobs:
             $leaf = Split-Path -Leaf $file
             if (-not ($lines -contains "$expected  $leaf")) { throw "SHA256SUMS.txt does not contain the checksum of $leaf." }
           }
-          Write-Host 'Signatures valid; ZIP and portable EXE identical; checksums match.'
+          Write-Host 'Signatures valid and from the expected certificate; ZIP and portable EXE identical; checksums match.'
+
+      # The release text always states what kind of certificate was used, taken from the certificate itself.
+      - name: Compose release notes
+        shell: pwsh
+        run: |
+          $selfSigned = '${{ steps.cert.outputs.self_signed }}' -eq 'true'
+          $trust = if ($selfSigned) {
+            "**Self-signed certificate.** The signature proves the file is unmodified and was signed with the key below, but Windows does not trust this certificate by itself (it is not issued by a public certification authority), so it does not establish a verified publisher and SmartScreen warnings can still appear. Compare the thumbprint to confirm the file comes from the VoxShift release key."
+          } else {
+            "Signed with a certificate that chains to a root trusted by Windows. SmartScreen reputation is separate and can still take time to build."
+          }
+          $body = (Get-Content docs/release-notes/${{ steps.version.outputs.tag }}.md -Raw -Encoding utf8).TrimEnd() + @"
+
+
+          ## Digital signature
+          $trust
+
+          | | |
+          |---|---|
+          | Signer | ``${{ steps.cert.outputs.subject }}`` |
+          | SHA-1 thumbprint | ``${{ steps.cert.outputs.thumbprint }}`` |
+          | Digest / timestamp | SHA-256, RFC 3161 timestamped |
+          | Publicly trusted | $(if ($selfSigned) { 'No' } else { 'Yes' }) |
+
+          Check it: ``Get-AuthenticodeSignature .\VoxShift-${{ steps.version.outputs.tag }}-win-x64-portable.exe | Format-List`` (see the README).
+          "@
+          Set-Content -Path dist/release-body.md -Value $body -Encoding utf8
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
@@ -173,7 +177,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
           name: ${{ steps.version.outputs.title }}
-          body_path: docs/release-notes/${{ steps.version.outputs.tag }}.md
+          body_path: dist/release-body.md
           draft: false
           prerelease: false
           make_latest: true

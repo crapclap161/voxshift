@@ -48,11 +48,12 @@ It is one file. No installer, nothing to extract.
 </table>
 
 > [!NOTE]
-> **About Windows security warnings.** From **v0.0.8**, the release is *digitally signed* (Authenticode), so Windows can
-> show who published it. Older versions (v0.0.7 and earlier) are **not** signed. A signature does not remove every
-> warning: Windows SmartScreen also looks at how many people have downloaded a file, so *“Windows protected your PC”*
-> can still appear for a new release. If that happens, see [Windows warns me when I start VoxShift](#windows-warns-me-when-i-start-voxshift).
-> The release also contains `SHA256SUMS.txt` so you can [check your download](#check-your-download-optional).
+> **About Windows security warnings.** From **v0.0.8**, `VoxShift.exe` is signed with a **self-signed** certificate that
+> belongs to the VoxShift project. That lets you confirm the file is unmodified and comes from the VoxShift release key,
+> but Windows does **not** trust a self-signed certificate on its own and does **not** treat it as a verified publisher.
+> So *“Windows protected your PC”* (SmartScreen) **can still appear**. That is expected: see
+> [Windows warns me when I start VoxShift](#windows-warns-me-when-i-start-voxshift). Versions up to v0.0.7 are not signed.
+> Every release also contains `SHA256SUMS.txt` so you can [check your download](#check-your-download-optional).
 
 ## 🤔 What is VoxShift?
 
@@ -298,39 +299,50 @@ one simple window that has big buttons.
 
 ### Windows warns me when I start VoxShift
 
-*“Windows protected your PC”* (SmartScreen) is shown for programs Windows hasn't seen often. This is **not** an error
-and doesn't mean the file is infected, but you should only continue if you downloaded VoxShift from the
-[official releases page](https://github.com/crapclap161/voxshift/releases).
+*“Windows protected your PC”* (SmartScreen) is shown for programs Windows hasn't seen often or can't attribute to a
+publisher it trusts. It is **not** an error and doesn't mean the file is infected, but only continue if you downloaded
+VoxShift from the [official releases page](https://github.com/crapclap161/voxshift/releases).
 
 1. Click **More info**.
-2. Check the *Publisher*. For v0.0.8 and newer it should show the publisher name VoxShift is signed with. Versions
-   v0.0.7 and older show *Unknown publisher* because they are unsigned.
+2. The *Publisher* shows *Unknown publisher*. That is expected: the v0.0.8 signature uses a self-signed certificate, and
+   older versions are unsigned.
 3. Click **Run anyway**.
 
 If you extracted the ZIP, you can avoid the prompt for every file: right-click the `.zip` **before** extracting →
 *Properties* → tick **Unblock** → *OK*.
 
-**Code-signing status:** releases from v0.0.8 on are signed with a certificate issued through Microsoft Artifact
-Signing, with a trusted timestamp. A signature proves who published the file and that it wasn't changed afterwards;
-it does **not** guarantee that SmartScreen stays silent, because reputation also builds up over time. Maintainers can
-read how it is set up in [docs/code-signing.md](docs/code-signing.md).
+**Code-signing status, in plain words**
+
+| Question | v0.0.8 |
+|---|---|
+| Is `VoxShift.exe` digitally signed (Authenticode, SHA-256, timestamped)? | Yes, with a **self-signed** certificate whose thumbprint is shown in the release notes |
+| Can I check that the file is unmodified and made with the VoxShift release key? | Yes, see below |
+| Does Windows trust the certificate by itself / show a verified publisher? | **No** |
+| Will SmartScreen warnings disappear? | **No**, they can still appear |
+
+A publicly trusted certificate from a certification authority could change the last two rows; the project may
+move to one later. Do **not** install the VoxShift certificate into your Windows trust store. How signing works and its
+limits: [docs/code-signing.md](docs/code-signing.md).
 
 ### Check your download (optional)
 
-Every release includes `SHA256SUMS.txt`. In PowerShell, in the folder with your download:
+Every release includes `SHA256SUMS.txt`. In PowerShell, in the folder with your download (use the file name of the
+version you downloaded):
 
 ```powershell
 Get-FileHash .\VoxShift-v0.0.8-win-x64-portable.exe -Algorithm SHA256
 ```
 
-The hash must equal the one listed for that file name in `SHA256SUMS.txt`. For signed releases you can also see the
-signature with:
+The hash must equal the one listed for that file name in `SHA256SUMS.txt`. To inspect the signature:
 
 ```powershell
-Get-AuthenticodeSignature .\VoxShift-v0.0.8-win-x64-portable.exe | Format-List
+$s = Get-AuthenticodeSignature .\VoxShift-v0.0.8-win-x64-portable.exe
+$s.Status                          # see the note below
+$s.SignerCertificate.Thumbprint    # must equal the thumbprint in the release notes
 ```
 
-`Status` should be `Valid`. (Use the file name of the version you downloaded.)
+For a self-signed certificate `Status` is normally `NotTrusted` or `UnknownError` (Windows doesn't trust the
+certificate). That is expected. `HashMismatch` or `NotSigned` is **not** OK: don't run the file.
 
 ## ❓ Good to know
 
@@ -419,7 +431,8 @@ src/VoxShift.Core/             platform-independent, unit tested: router, mix po
 src/VoxShift.Audio/            Windows audio: WASAPI capture/render (NAudio), process-loopback interop, devices, engine
 src/VoxShift/                  WPF app: design system (Themes/Theme.xaml), views, view models, tray, hotkey
 tests/VoxShift.Core.Tests/     xUnit tests
-scripts/                       package.ps1, smoke-test.ps1, verify-signature.ps1
+scripts/                       package.ps1, smoke-test.ps1, signing: create-signing-certificate / sign-executable /
+                               verify-signature / test-signing .ps1
 .github/workflows/             ci.yml, release.yml, screenshots.yml
 docs/                          screenshots, release notes, code-signing guide
 ```
@@ -432,9 +445,9 @@ workflow, which renders the real windows with sample data).
 The version lives in `Directory.Build.props` (`<VersionPrefix>`); every release needs a matching `CHANGELOG.md` entry and
 `docs/release-notes/vX.Y.Z.md`. To release: run the **Screenshots** workflow on the release branch (it commits fresh
 screenshots), then push the tag `vX.Y.Z` (or run **Release** manually with the tag). The release workflow builds, tests,
-**signs** `VoxShift.exe`, verifies the signature, smoke-tests the signed file, packages it, verifies the packaged files
-and checksums, and publishes `VoxShift-vX.Y.Z-win-x64-portable.exe`, `VoxShift-vX.Y.Z-win-x64.zip` and
-`SHA256SUMS.txt`. Signing needs one-time owner setup, described in [docs/code-signing.md](docs/code-signing.md); without
-it the release workflow stops before publishing.
+**signs** `VoxShift.exe` (Authenticode, self-signed certificate stored in GitHub secrets), verifies the signature,
+smoke-tests the signed file, packages it, verifies the packaged files and checksums, and publishes `VoxShift-vX.Y.Z-win-x64-portable.exe`, `VoxShift-vX.Y.Z-win-x64.zip` and
+`SHA256SUMS.txt`. Signing needs a one-time setup of two repository secrets, described in
+[docs/code-signing.md](docs/code-signing.md); without them the release workflow stops before publishing.
 
 </details>

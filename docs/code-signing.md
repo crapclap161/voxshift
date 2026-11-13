@@ -1,119 +1,175 @@
 # Code signing (maintainer guide)
 
-VoxShift releases are signed with **Authenticode** using **[Microsoft Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/)**
-(formerly *Trusted Signing*), authenticated from GitHub Actions with **OpenID Connect (OIDC)**. This page explains the
-design and the one-time owner setup. **Nothing here has been configured for this repository yet**, so the release
-workflow currently refuses to publish (see [Status](#status)).
+VoxShift releases are signed with **Authenticode** using a certificate and private key that you control. The key lives in
+two **GitHub Actions repository secrets**; no cloud signing service, Azure account or external identity verification is
+involved.
 
-## What signing does and does not do
+> [!IMPORTANT]
+> The default certificate is **self-signed**. Read [What a self-signed signature does and does not give you](#what-a-self-signed-signature-does-and-does-not-give-you)
+> before telling users anything about it.
 
-- It proves who published `VoxShift.exe` (the *publisher* shown in the Windows file properties and the SmartScreen
-  dialog) and that the file was not modified after signing. The signature carries a trusted timestamp, so it stays
-  valid after the short-lived signing certificate expires.
-- It does **not** guarantee that Windows SmartScreen never warns. SmartScreen also weighs download reputation, which
-  builds up over time, so *“Windows protected your PC”* can still appear for new releases. Do not promise otherwise to
-  users.
-- A **self-signed** certificate, a GPG key or an SSH key does **not** help: Windows does not trust them. The pipeline
-  rejects self-signed certificates on purpose.
+## Quick start (about 5 minutes, once)
 
-## Why Artifact Signing + OIDC
+1. **On a Windows PC**, open PowerShell in a clone of the repository (or just download the script) and run:
 
-| Requirement | How it is met |
-|---|---|
-| Publicly trusted certificate | Artifact Signing issues certificates from Microsoft's public-trust chain after **identity validation**. |
-| No private key to leak | The key lives in Microsoft's HSM-backed service. The repository never sees a key, a `.pfx` or a password. |
-| No long-lived secret | GitHub issues a short-lived OIDC token per run; Entra ID exchanges it for an Azure token. Only non-secret **IDs** are stored (as repository *variables*). |
-| Only releases can sign | The Entra federated credential trusts only the GitHub *environment* `release-signing` of this repository, and pull requests never reach it. |
-| Reproducible, auditable | The actions are pinned by commit SHA; every signature is timestamped (RFC 3161) and verified automatically. |
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\create-signing-certificate.ps1
+   ```
 
-**Alternatives** (not implemented): a code-signing certificate from a public CA (OV or EV). Since 2023 the private key
-must live on a hardware token or in a cloud HSM, which makes unattended CI signing harder and usually adds a
-vendor-specific action. The [SignPath Foundation](https://signpath.org/) offers free signing for qualifying open-source
-projects after an application. Artifact Signing is the simplest fit for a GitHub-hosted pipeline.
+   Choose a password of at least 16 characters when asked. The script writes three files to
+   `Documents\VoxShift-signing\` (outside the repository) and prints the certificate **thumbprint**:
 
-## What the pipeline does
+   | File | Contains | What to do |
+   |---|---|---|
+   | `VoxShift-codesign.pfx` | certificate **and private key**, password-protected | **Back it up** (see below). Never commit it. |
+   | `VoxShift-codesign.cer` | public certificate only | Safe to share or commit. Lets users compare the thumbprint. |
+   | `WINDOWS_CODESIGN_PFX_BASE64.txt` | the PFX as Base64 | Paste into the first secret, then **delete the file**. |
 
-`.github/workflows/release.yml` (job `release`, environment `release-signing`):
+2. **Add two repository secrets** at *Settings → Secrets and variables → Actions → New repository secret*:
 
-1. **Require code-signing configuration**: fails immediately if any variable below is missing. No unsigned release can
-   be published.
-2. Build, format-check, test and `dotnet publish` (self-contained single file).
-3. `azure/login` with OIDC, then `azure/artifact-signing-action` signs `publish/VoxShift.exe` (SHA-256, timestamp from
-   `http://timestamp.acs.microsoft.com`).
-4. `scripts/verify-signature.ps1` checks that Windows reports the signature as **Valid** (so it chains to a trusted root),
-   the signer is not self-signed, it has the Code Signing EKU, a timestamp is present, `signtool verify /pa` passes and,
-   if configured, the publisher matches.
-5. The smoke test runs the **signed** executable.
-6. `scripts/package.ps1` creates the portable EXE, the ZIP and `SHA256SUMS.txt` **after** signing.
-7. The signature of the portable EXE **and** of the EXE inside the ZIP is verified again, both files must be
-   byte-identical, and `SHA256SUMS.txt` must contain exactly the checksums of the files about to be uploaded.
-8. Only then is the GitHub Release created.
-
-Ordinary CI (`ci.yml`, pull requests) never signs and has no access to the signing environment. It also runs a
-negative test proving the verification script rejects an unsigned build.
-
-## One-time owner setup
-
-These steps need your Azure account, identity verification and (small) billing, so they cannot be automated.
-
-1. **Azure subscription.** Create or use a pay-as-you-go subscription. Register the resource provider
-   `Microsoft.CodeSigning`.
-2. **Create an Artifact Signing account** (Azure portal → *Artifact Signing accounts*) in a region close to you. Note
-   the **account name** and the region's **endpoint**, e.g. `https://eus.codesigning.azure.net/`
-   ([list of endpoints](https://learn.microsoft.com/azure/artifact-signing/quickstart)). Pricing is a small monthly fee
-   (a Basic tier exists); check the current price on the Azure pricing page.
-3. **Identity validation** (*Identity validations* → *New identity* → **Public**). Microsoft verifies either an
-   organization or, where offered, an individual developer with a government ID. Eligibility depends on country and
-   account type and is subject to change, so check the
-   [current requirements](https://learn.microsoft.com/azure/artifact-signing/quickstart) first. Validation can take
-   days. The validated name becomes the publisher name users see.
-4. **Create a certificate profile** of type **Public Trust** that uses the validated identity. Note the **profile name**.
-5. **Create an Entra app registration** for GitHub (Entra ID → *App registrations* → *New*). Note its **Application
-   (client) ID** and the **Directory (tenant) ID**.
-6. **Add a federated credential** to that app (*Certificates & secrets* → *Federated credentials* → *GitHub Actions
-   deploying Azure resources*):
-   - Organization: `crapclap161`, Repository: `voxshift`
-   - Entity type: **Environment**, name: `release-signing`
-   - (Resulting subject: `repo:crapclap161/voxshift:environment:release-signing`)
-7. **Grant the app permission to sign:** Artifact Signing account → *Access control (IAM)* → *Add role assignment* →
-   **Artifact Signing Certificate Profile Signer** → select the app registration. (`azure/login` also needs the
-   service principal to have a role on the *subscription* for the login step to succeed; *Reader* is enough.)
-8. **GitHub environment.** In the repository: *Settings → Environments → New environment* → `release-signing`. Optionally
-   add *Required reviewers* (you) so every release needs a manual approval, and restrict it to tags `v*`.
-9. **Repository variables** (*Settings → Secrets and variables → Actions → Variables*; they are identifiers, not
-   secrets):
-
-   | Variable | Value |
+   | Secret name | Value |
    |---|---|
-   | `AZURE_CLIENT_ID` | Application (client) ID from step 5 |
-   | `AZURE_TENANT_ID` | Directory (tenant) ID from step 5 |
-   | `AZURE_SUBSCRIPTION_ID` | The subscription ID from step 1 |
-   | `SIGNING_ENDPOINT` | Endpoint from step 2, e.g. `https://eus.codesigning.azure.net/` |
-   | `SIGNING_ACCOUNT` | Artifact Signing account name |
-   | `SIGNING_CERTIFICATE_PROFILE` | Certificate profile name from step 4 |
-   | `SIGNING_PUBLISHER` | *(optional, recommended)* text the signer subject must contain, e.g. `CN=Your Validated Name` |
+   | `WINDOWS_CODESIGN_PFX_BASE64` | the entire content of `WINDOWS_CODESIGN_PFX_BASE64.txt` |
+   | `WINDOWS_CODESIGN_PFX_PASSWORD` | the password you chose |
 
-   No GitHub **secrets** are required. If you ever see a request to store a password, client secret or `.pfx`, do not:
-   it is not needed with this design.
-10. **Release.** Follow the normal release process (README → *Releases* / `CONTRIBUTING.md`). The workflow signs,
-    verifies and publishes. Afterwards download the portable EXE and check *Properties → Digital Signatures*, or run
-    `Get-AuthenticodeSignature .\VoxShift-v….exe | Format-List`.
+   Prefer the command line? With the [GitHub CLI](https://cli.github.com/) (`gh auth login` once):
 
-## Maintenance
+   ```powershell
+   Get-Content -Raw "$HOME\Documents\VoxShift-signing\WINDOWS_CODESIGN_PFX_BASE64.txt" | gh secret set WINDOWS_CODESIGN_PFX_BASE64 --repo crapclap161/voxshift
+   gh secret set WINDOWS_CODESIGN_PFX_PASSWORD --repo crapclap161/voxshift
+   ```
 
-- **Certificates rotate automatically.** Artifact Signing issues short-lived certificates per signing operation; the
-  timestamp keeps old signatures valid. Nothing to renew in GitHub.
-- **Identity validation** must be kept current in the Azure portal (Microsoft emails before it lapses).
-- **Action updates.** Dependabot proposes updates for `azure/login` and `azure/artifact-signing-action`. When updating,
-  keep the commit-SHA pin and verify the SHA belongs to the tagged release.
-- **Rotating the app:** create a new federated credential, update `AZURE_CLIENT_ID`, delete the old app.
-- **Local verification:** `./scripts/verify-signature.ps1 -Path VoxShift.exe` (Windows PowerShell 7 or Windows
-  PowerShell 5.1 with `Get-AuthenticodeSignature`).
+   (The second command prompts for the value.) Already have a `.pfx`? Produce the Base64 value yourself:
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\path\to\certificate.pfx')) | Set-Clipboard
+   ```
+
+3. **Optional pin:** add a repository *variable* (not a secret) `WINDOWS_CODESIGN_THUMBPRINT` with the thumbprint the
+   script printed. The release then refuses to sign if a different certificate is ever stored in the secret by mistake.
+4. **Release:** run the **Release** workflow (*Actions → Release → Run workflow*, tag `v0.0.8`) or push the tag. The
+   first thing it does is validate the secrets, so a missing or wrong secret fails within seconds with instructions,
+   before anything is built or published.
+
+## How the pipeline works
+
+`.github/workflows/release.yml`:
+
+1. **Validate signing certificate.** `scripts/sign-executable.ps1 -ValidateOnly` decodes the secrets in memory and checks
+   the password, private key, Code Signing key usage and validity period. Missing or invalid secrets stop the release.
+2. Validate the tag against `Directory.Build.props`, `CHANGELOG.md`, release notes and README screenshots; restore,
+   format check, build, unit tests; `dotnet publish` (self-contained single file).
+3. **Sign** `publish/VoxShift.exe` with `signtool` (SHA-256) and add an **RFC 3161 timestamp** (DigiCert, with Sectigo
+   and GlobalSign as fallbacks; no timestamp means no release). The PFX is decoded to a private temporary file, imported
+   with a non-exportable key and deleted at once; the key is removed from the runner afterwards (also when the job fails).
+   The secrets are visible only to the validate and sign steps and are masked by GitHub in logs. They are passed through
+   environment variables, never on a command line, and are never printed.
+4. **Verify** (`scripts/verify-signature.ps1`): the file is signed and unmodified, signed by the **expected certificate**
+   (thumbprint taken from the secret), has a timestamp and a SHA-256 digest, and `signtool verify /pa` passes.
+5. Smoke test of the **signed** executable, then packaging (portable EXE, ZIP, `SHA256SUMS.txt`), **after** signing.
+6. Verify again the portable EXE **and** the EXE inside the ZIP, check that both are identical, and that
+   `SHA256SUMS.txt` contains the checksums of the files being uploaded.
+7. Create the GitHub Release. The release text gets a *Digital signature* section generated from the certificate itself
+   (signer, thumbprint, self-signed or publicly trusted).
+
+Ordinary CI (`ci.yml`, pull requests) never receives the secrets. It runs `scripts/test-signing.ps1`, which creates a
+**throwaway** certificate, signs a copy of the build and proves that the gates work: the signed file verifies and runs,
+while unsigned files, tampered files, a wrong expected certificate, a wrong password, missing secrets and
+self-signed-as-public-trust are all rejected. (Timestamping needs a network service, so only the release exercises it.) A second
+CI check fails if a key or PFX is ever committed.
+
+## What a self-signed signature does and does not give you
+
+Four different things are easy to confuse:
+
+| | Self-signed (default) | Publicly trusted certificate |
+|---|---|---|
+| **Cryptographic integrity**: the file was not modified after signing | ✅ yes | ✅ yes |
+| **Identity of the key holder**: signed with *this* key (compare the thumbprint) | ✅ yes, if the user knows the thumbprint | ✅ yes, and a CA vouched for the publisher name |
+| **Public trust chain**: Windows trusts the certificate on its own | ❌ **no** | ✅ yes |
+| **SmartScreen reputation** | ❌ **not improved** | ⚠️ not guaranteed either; builds up with downloads |
+
+So with the self-signed key:
+
+- Windows shows the publisher as unknown or untrusted and may still show *“Windows protected your PC”*.
+- The signature is **not** a “verified publisher” and must not be described as such.
+- `Get-AuthenticodeSignature` reports a status such as `UnknownError` or `NotTrusted` (untrusted root), *not* `Valid`.
+  A status of `HashMismatch` means the file was changed after signing.
+- It is still useful: it lets someone who knows the thumbprint confirm that a file really comes from the holder of the
+  VoxShift release key and was not tampered with, and it keeps the same identity across releases.
+- Publishing the public certificate in a GitHub repository does **not** make Windows trust it.
+
+> Users should not be asked to install your certificate into their Trusted Root store. That would let anyone holding
+> the key sign software that Windows then trusts on their machine.
+
+### How to verify a downloaded file
+
+1. **Checksum:** `Get-FileHash .\VoxShift-v0.0.8-win-x64-portable.exe -Algorithm SHA256` must equal the line in
+   `SHA256SUMS.txt`.
+2. **Signature and thumbprint:**
+
+   ```powershell
+   $s = Get-AuthenticodeSignature .\VoxShift-v0.0.8-win-x64-portable.exe
+   $s.Status                      # NotTrusted / UnknownError for a self-signed key is expected; HashMismatch or NotSigned is NOT ok
+   $s.SignerCertificate.Subject
+   $s.SignerCertificate.Thumbprint   # must equal the thumbprint in the release notes
+   $s.TimeStamperCertificate.Subject # present = timestamped
+   ```
+
+3. **Strict check (maintainers, administrator PowerShell):** this temporarily trusts only the pinned certificate to let
+   Windows verify the signature cryptographically, then removes it again:
+
+   ```powershell
+   .\scripts\verify-signature.ps1 -Path .\VoxShift.exe -ExpectedThumbprint <thumbprint> -RequireTimestamp -TrustSelfSigned
+   ```
+
+   The output lists integrity, signer, thumbprint, timestamp and states plainly that a self-signed certificate is *not*
+   publicly trusted.
+
+## Backing up the key
+
+The PFX is the **only** copy of the private key (the script removes it from your Windows certificate store).
+
+- Keep **two** copies of `VoxShift-codesign.pfx` in different places (a password manager attachment and an offline USB
+  stick or encrypted cloud vault), and store the **password separately** from the file.
+- GitHub secrets cannot be read back, so the repository is *not* a backup.
+- If the key is lost or leaked you cannot recover it: create a new certificate (rotation, below). If it leaked,
+  delete the GitHub secrets immediately and say so in the next release notes.
+- Never commit the PFX, the Base64 text or the password. `.gitignore` blocks the usual file names and CI fails if key
+  files are committed.
+
+## Rotating or renewing
+
+The certificate is valid for 10 years by default; the release warns when fewer than 60 days remain, and refuses to sign
+with an expired certificate. A new certificate is a **new identity** (different thumbprint), so rotate only when needed:
+
+1. Run `create-signing-certificate.ps1 -OutputDirectory <new folder>` (or `-Force`; the script refuses to overwrite by
+   default so the identity cannot change by accident).
+2. Replace both secrets (and the optional `WINDOWS_CODESIGN_THUMBPRINT` variable).
+3. Mention the new thumbprint in the next release notes. Old releases keep their valid signatures and timestamps.
+
+Rotation after a leak: delete the secrets first, then follow the steps above.
+
+## Upgrading to a publicly trusted certificate later
+
+The pipeline needs no redesign. Buy or obtain an OV/EV code-signing certificate that can be exported as a PFX (note
+that many CAs issue keys on hardware tokens or cloud HSMs which cannot be exported; check this before buying), then:
+
+1. Replace `WINDOWS_CODESIGN_PFX_BASE64` and `WINDOWS_CODESIGN_PFX_PASSWORD` with the new PFX and its password
+   (and update or remove `WINDOWS_CODESIGN_THUMBPRINT`).
+2. The workflow detects that the certificate is not self-signed, then requires that **Windows itself reports the
+   signature as `Valid`** (a trusted chain) instead of pinning a self-signed certificate. Everything else is unchanged.
+3. Update the README and release notes wording about trust. Even then SmartScreen reputation builds over time and is
+   not guaranteed.
+
+Providers that sign in their own cloud (Azure Artifact Signing, SignPath, DigiCert KeyLocker, …) need their own signing
+step and are intentionally not used here.
 
 ## Status
 
 | | |
 |---|---|
-| Pipeline (signing, verification, checksums after signing) | Implemented in `release.yml` |
-| Azure account, identity validation, certificate profile, Entra app, repository variables | **Not configured yet; owner action required** |
-| Signed releases published | **None.** v0.0.7 and older are unsigned. v0.0.8 is published only once signing is configured and verified |
+| Signing, verification and checksum pipeline | Implemented in `release.yml`; tooling tested by CI with a throwaway certificate |
+| `WINDOWS_CODESIGN_PFX_BASE64`, `WINDOWS_CODESIGN_PFX_PASSWORD` | **Owner action required** (quick start above) |
+| Certificate type | Self-signed (not publicly trusted) |
+| Signed releases published | None until the secrets exist: v0.0.7 and older are unsigned |
