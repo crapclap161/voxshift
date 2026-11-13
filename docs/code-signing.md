@@ -168,4 +168,4 @@ step and are intentionally not used.
 | Signing, verification and checksum pipeline | Implemented in `release.yml`; tooling tested by CI with throwaway keys |
 | `VOXSHIFT_SIGNING_KEY` repository secret | Created by the owner |
 | Key type | Self-signed, derived from the passphrase (not publicly trusted) |
-| Signed releases published | None yet: v0.0.7 and older are unsigned; v0.0.8 is released by running the workflow |
+| Signed releases published | v0.0.8 (key ID `35a1adba1e8754d9f490e38b22060acc04041e6794c5f51f085b4d867d07356e`). v0.0.7 and older are unsigned |
