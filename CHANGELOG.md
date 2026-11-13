@@ -12,13 +12,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 its settings; the executable differs from v0.0.7 only in its version number and its Authenticode signature.
 
 ### Added
-- **Authenticode code signing** in the release pipeline with a project-owned **self-signed** certificate stored in two
-  GitHub Actions secrets (`WINDOWS_CODESIGN_PFX_BASE64`, `WINDOWS_CODESIGN_PFX_PASSWORD`). No cloud signing service,
+- **Authenticode code signing** in the release pipeline with a project-owned **self-signed** key defined by one
+  GitHub Actions secret (`VOXSHIFT_SIGNING_KEY`, a passphrase from which a stable ECDSA P-256 key and an in-memory
+  certificate are derived; a certificate file via `WINDOWS_CODESIGN_PFX_BASE64` is optional). No cloud signing service,
   Azure account or private key in the repository. `VoxShift.exe` is signed (SHA-256, RFC 3161 timestamp) *before*
   packaging, so the portable EXE and the EXE inside the ZIP are the same signed file, and `SHA256SUMS.txt` is
   generated after signing.
-- `scripts/create-signing-certificate.ps1` (one-time, beginner-friendly certificate and secret generator),
-  `scripts/sign-executable.ps1`, `scripts/verify-signature.ps1` and `scripts/test-signing.ps1`.
+- `scripts/sign-executable.ps1`, `scripts/derived-signing-key.ps1`, `scripts/verify-signature.ps1`,
+  `scripts/test-signing.ps1` and the optional `scripts/create-signing-certificate.ps1` (random stored key as PFX).
 - `docs/code-signing.md`: setup, verification, backup, rotation, upgrade to a publicly trusted certificate, and the
   limits of self-signed signatures. A self-signed certificate gives integrity and key-holder identity only: it is not
   publicly trusted and does not remove SmartScreen warnings.
@@ -29,7 +30,7 @@ its settings; the executable differs from v0.0.7 only in its version number and 
 - The release workflow validates the signing secrets first and refuses to publish an unsigned release. It verifies
   integrity, the expected certificate, the timestamp and SHA-256 on the portable EXE and on the EXE inside the ZIP,
   checks that both are identical and that the checksums match, and appends a *Digital signature* section (signer,
-  thumbprint, trust status) to the release notes. The same workflow works with a publicly trusted PFX later.
+  key fingerprint, trust status) to the release notes. The same workflow works with a publicly trusted PFX later.
 - **README rewritten** for newcomers: a prominent download section, step-by-step Windows installation (including
   VB-CABLE and its reboot), a first-time setup walkthrough for the microphone, application, virtual cable and the
   VRChat microphone, usage examples, a shorter feature tour, troubleshooting and an accurate description of the

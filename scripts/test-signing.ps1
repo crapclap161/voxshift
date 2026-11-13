@@ -78,8 +78,46 @@ try {
     Assert-Rejected 'wrong PFX password' { & (Join-Path $scripts 'sign-executable.ps1') -ValidateOnly }
     $env:WINDOWS_CODESIGN_PFX_PASSWORD = $plain
     Assert-Rejected 'pinned thumbprint mismatch when signing' { & (Join-Path $scripts 'sign-executable.ps1') -ValidateOnly -ExpectedThumbprint ('1' * 40) }
-    Remove-Item Env:\WINDOWS_CODESIGN_PFX_BASE64
+    Remove-Item Env:\WINDOWS_CODESIGN_PFX_BASE64, Env:\WINDOWS_CODESIGN_PFX_PASSWORD
     Assert-Rejected 'missing signing secrets' { & (Join-Path $scripts 'sign-executable.ps1') -ValidateOnly }
+
+    # 6. Passphrase-only mode (the release's VOXSHIFT_SIGNING_KEY): no certificate file, a key derived from a passphrase.
+    Write-Host '== passphrase-derived key'
+    . (Join-Path $scripts 'derived-signing-key.ps1')
+    $hex = { param($b) ([BitConverter]::ToString([byte[]]$b)) -replace '-', '' }
+    foreach ($round in 1..3) {   # the point arithmetic must agree with .NET's own key generation
+        $ref = [Security.Cryptography.ECDsa]::Create([Security.Cryptography.ECCurve]::NamedCurves.nistP256)
+        $ep = $ref.ExportParameters($true)
+        $point = Get-PublicPoint (ConvertFrom-BigEndian $ep.D)
+        if ((& $hex (ConvertTo-BigEndian32 $point.X)) -ne (& $hex $ep.Q.X) -or (& $hex (ConvertTo-BigEndian32 $point.Y)) -ne (& $hex $ep.Q.Y)) { throw 'Derived public key does not match .NET elliptic-curve maths.' }
+        $ref.Dispose()
+    }
+    $phrase = [Convert]::ToBase64String((1..24 | ForEach-Object { Get-Random -Maximum 256 }))
+    $env:WINDOWS_CODESIGN_PFX_PASSWORD = $phrase
+    $first = & (Join-Path $scripts 'sign-executable.ps1') -ValidateOnly -PassThru
+    $second = & (Join-Path $scripts 'sign-executable.ps1') -ValidateOnly -PassThru
+    if ($first.Mode -ne 'passphrase') { throw "Expected passphrase mode, got $($first.Mode)." }
+    if (-not $first.SelfSigned) { throw 'The derived certificate must be self-signed.' }
+    if ($first.KeySha256 -ne $second.KeySha256) { throw 'The same passphrase must give the same key identity.' }
+    $env:WINDOWS_CODESIGN_PFX_PASSWORD = $phrase + 'x'
+    $other = & (Join-Path $scripts 'sign-executable.ps1') -ValidateOnly -PassThru
+    if ($other.KeySha256 -eq $first.KeySha256) { throw 'A different passphrase must give a different key.' }
+    $env:WINDOWS_CODESIGN_PFX_PASSWORD = 'tooshort'
+    Assert-Rejected 'too short passphrase' { & (Join-Path $scripts 'sign-executable.ps1') -ValidateOnly }
+    $env:WINDOWS_CODESIGN_PFX_PASSWORD = $phrase
+    $derivedExe = Join-Path $work 'derived.exe'
+    Copy-Item $ExePath $derivedExe
+    & (Join-Path $scripts 'sign-executable.ps1') -Path $derivedExe -NoTimestamp
+    & (Join-Path $scripts 'verify-signature.ps1') -Path $derivedExe -ExpectedPublicKeySha256 $first.KeySha256 -TrustSelfSigned
+    & (Join-Path $scripts 'smoke-test.ps1') -ExePath $derivedExe -ExpectedVersion $ExpectedVersion
+    Assert-Rejected 'different signing key' { & (Join-Path $scripts 'verify-signature.ps1') -Path $derivedExe -ExpectedPublicKeySha256 $other.KeySha256 -TrustSelfSigned }
+    Assert-Rejected 'derived signature as publicly trusted' { & (Join-Path $scripts 'verify-signature.ps1') -Path $derivedExe -ExpectedPublicKeySha256 $first.KeySha256 -RequirePublicTrust }
+    $derivedBad = Join-Path $work 'derived-tampered.exe'
+    Copy-Item $derivedExe $derivedBad
+    $fs = [IO.File]::Open($derivedBad, 'Open', 'ReadWrite')
+    try { $fs.Position = 1MB; $b = $fs.ReadByte(); $fs.Position = 1MB; $fs.WriteByte([byte](($b + 1) % 256)) } finally { $fs.Dispose() }
+    Assert-Rejected 'modified derived-key file' { & (Join-Path $scripts 'verify-signature.ps1') -Path $derivedBad -ExpectedPublicKeySha256 $first.KeySha256 -TrustSelfSigned }
+    if (Get-ChildItem Cert:\CurrentUser\My | Where-Object Subject -like '*key derived from a passphrase*') { throw 'The derived signing certificate was not removed from the store.' }
 
     Write-Host 'Signing tooling test passed.'
 } finally {

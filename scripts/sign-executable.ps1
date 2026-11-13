@@ -3,15 +3,16 @@
   Authenticode-signs executables with the project's PFX code-signing certificate (SHA-256, RFC 3161 timestamp).
 
 .DESCRIPTION
-  The certificate comes from two environment variables (GitHub Actions secrets in the release workflow):
-    WINDOWS_CODESIGN_PFX_BASE64    the .pfx file, Base64 encoded
-    WINDOWS_CODESIGN_PFX_PASSWORD  its password
+  Two ways to provide the signing identity, both via environment variables (GitHub Actions secrets in the release):
+    * Passphrase only (simplest):  WINDOWS_CODESIGN_PFX_PASSWORD  (the release maps the secret VOXSHIFT_SIGNING_KEY to it).
+      A stable ECDSA P-256 key is derived from the passphrase and wrapped in an in-memory self-signed certificate
+      (scripts/derived-signing-key.ps1). The identity to compare is the public-key SHA-256 ("key_sha256").
+    * Certificate file:            additionally WINDOWS_CODESIGN_PFX_BASE64 = the .pfx, Base64 encoded; the password
+      then unlocks that PFX. This also accepts a publicly trusted OV/EV certificate exported as PFX.
   Neither value is ever printed or passed on a command line. The PFX is decoded to a private temporary file only
   long enough to import it into the (ephemeral) user certificate store as a NON-exportable key; the file is deleted
   right after the import, and again in the cleanup. The key is removed from the store when signing is finished.
 
-  Works for a self-signed certificate (the default, see docs/code-signing.md) and, unchanged, for a publicly trusted
-  OV/EV code-signing certificate exported as PFX.
 
   Modes
     -ValidateOnly   check the secrets/certificate (decodes, password, private key, code-signing EKU, validity) and
@@ -32,6 +33,8 @@ param(
     [string[]] $TimestampUrl = @('http://timestamp.digicert.com', 'http://timestamp.sectigo.com', 'http://timestamp.globalsign.com/tsa/r6advanced1'),
     # Only for automated tests that must not depend on the network. Never used by the release workflow.
     [switch] $NoTimestamp,
+    # Return the certificate facts as an object (tests).
+    [switch] $PassThru,
     # Optional pin: refuse to sign unless the certificate has this SHA-1 thumbprint.
     [string] $ExpectedThumbprint = $env:WINDOWS_CODESIGN_THUMBPRINT
 )
@@ -40,6 +43,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Security
 $X509 = 'System.Security.Cryptography.X509Certificates'
 $codeSigningEku = '1.3.6.1.5.5.7.3.3'
+. (Join-Path $PSScriptRoot 'derived-signing-key.ps1')
 $stateFile = Join-Path ([IO.Path]::GetTempPath()) 'voxshift-signing-state.txt'
 $tempPfx = Join-Path ([IO.Path]::GetTempPath()) ("voxshift-" + [Guid]::NewGuid().ToString('N') + '.pfx')
 
@@ -68,23 +72,32 @@ function Remove-SigningCertificate {
 if ($Cleanup) { Remove-SigningCertificate; Write-Host 'Signing certificate and temporary files removed.'; return }
 
 $instructions = @'
-Code signing is not configured. Add two GitHub Actions repository secrets (Settings > Secrets and variables > Actions):
-  WINDOWS_CODESIGN_PFX_BASE64    the code-signing .pfx file, Base64 encoded
-  WINDOWS_CODESIGN_PFX_PASSWORD  the password of that .pfx
-Create them with scripts/create-signing-certificate.ps1 (see docs/code-signing.md). Refusing to produce an unsigned release.
+Code signing is not configured. Add this GitHub Actions repository secret (Settings > Secrets and variables > Actions):
+  VOXSHIFT_SIGNING_KEY   a long random passphrase (24+ random characters). It deterministically defines the VoxShift signing key.
+(Alternatively provide a certificate: WINDOWS_CODESIGN_PFX_BASE64 + WINDOWS_CODESIGN_PFX_PASSWORD. See docs/code-signing.md.)
+Refusing to produce an unsigned release.
 '@
 $pfxBase64 = $env:WINDOWS_CODESIGN_PFX_BASE64
 $pfxPassword = $env:WINDOWS_CODESIGN_PFX_PASSWORD
-if ([string]::IsNullOrWhiteSpace($pfxBase64) -or [string]::IsNullOrEmpty($pfxPassword)) { throw $instructions }
+if ([string]::IsNullOrEmpty($pfxPassword)) { throw $instructions }
 
-try { $pfxBytes = [Convert]::FromBase64String(($pfxBase64 -replace '\s', '')) }
-catch { throw 'WINDOWS_CODESIGN_PFX_BASE64 is not valid Base64. Re-create it from the .pfx file (see docs/code-signing.md).' }
-$securePassword = ConvertTo-SecureString -String $pfxPassword -AsPlainText -Force
+if ([string]::IsNullOrWhiteSpace($pfxBase64)) {
+    # Passphrase-only mode: derive the key, build the self-signed certificate in memory.
+    $mode = 'passphrase'
+    $derived = New-DerivedSigningCertificate -Passphrase $pfxPassword
+    $pfxBytes = $derived.Pfx
+    $securePassword = $derived.PfxPassword
+} else {
+    $mode = 'pfx'
+    try { $pfxBytes = [Convert]::FromBase64String(($pfxBase64 -replace '\s', '')) }
+    catch { throw 'WINDOWS_CODESIGN_PFX_BASE64 is not valid Base64. Re-create it from the .pfx file (see docs/code-signing.md).' }
+    $securePassword = ConvertTo-SecureString -String $pfxPassword -AsPlainText -Force
+}
 
 # Validate in memory first (nothing touches the disk or the certificate store yet).
 try {
     $probe = New-Object "$X509.X509Certificate2" -ArgumentList @($pfxBytes, $securePassword, [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet)
-} catch { throw 'The PFX could not be opened. Wrong WINDOWS_CODESIGN_PFX_PASSWORD, or WINDOWS_CODESIGN_PFX_BASE64 is not a .pfx file.' }
+} catch { throw 'The PFX could not be opened. Wrong password, or WINDOWS_CODESIGN_PFX_BASE64 is not a .pfx file.' }
 
 $thumbprint = $probe.Thumbprint
 $eku = @($probe.Extensions | Where-Object { $_ -is [Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension] } |
@@ -94,27 +107,34 @@ if (-not $probe.HasPrivateKey) { throw 'The PFX contains no private key.' }
 if ($eku -notcontains $codeSigningEku) { throw 'The certificate does not have the Code Signing extended key usage (1.3.6.1.5.5.7.3.3).' }
 if ($now -lt $probe.NotBefore) { throw "The certificate is not valid before $($probe.NotBefore.ToString('u'))." }
 if ($now -gt $probe.NotAfter) { throw "The certificate expired on $($probe.NotAfter.ToString('u')). Create a new one (docs/code-signing.md)." }
-if ($ExpectedThumbprint -and ($ExpectedThumbprint -replace '\s', '') -ne $thumbprint) {
+# The thumbprint is only stable for a stored PFX (a passphrase-derived certificate is rebuilt each run, its KEY is stable).
+if ($mode -eq 'pfx' -and $ExpectedThumbprint -and ($ExpectedThumbprint -replace '\s', '') -ne $thumbprint) {
     throw "The certificate thumbprint does not match WINDOWS_CODESIGN_THUMBPRINT. Is the right PFX stored in the secret?"
 }
 $daysLeft = [int]($probe.NotAfter - $now).TotalDays
 if ($daysLeft -lt 60) { Write-Warning "The signing certificate expires in $daysLeft days. Plan a renewal (docs/code-signing.md)." }
 $selfSigned = $probe.Subject -eq $probe.Issuer
+$keySha256 = Get-PublicKeySha256 $probe
 $subject = $probe.Subject
 $notAfter = $probe.NotAfter.ToString('yyyy-MM-dd')
 $probe.Dispose()
 
 Write-Host 'Signing certificate OK'
 Write-Host "  subject    : $subject"
+Write-Host "  mode       : $mode"
+Write-Host "  key SHA-256: $keySha256   (the identity to compare)"
 Write-Host "  thumbprint : $thumbprint"
 Write-Host "  valid until: $notAfter ($daysLeft days)"
 Write-Host "  self-signed: $selfSigned"
 if ($env:GITHUB_OUTPUT) {
     "thumbprint=$thumbprint" >> $env:GITHUB_OUTPUT
+    "key_sha256=$keySha256" >> $env:GITHUB_OUTPUT
+    "mode=$mode" >> $env:GITHUB_OUTPUT
     "subject=$subject" >> $env:GITHUB_OUTPUT
     "self_signed=$($selfSigned.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
     "not_after=$notAfter" >> $env:GITHUB_OUTPUT
 }
+if ($PassThru) { [pscustomobject]@{ Mode = $mode; Thumbprint = $thumbprint; KeySha256 = $keySha256; SelfSigned = $selfSigned } }
 if ($ValidateOnly) { return }
 
 if (-not $Path -or $Path.Count -eq 0) { throw 'Specify -Path with the file(s) to sign.' }

@@ -1,103 +1,102 @@
 # Code signing (maintainer guide)
 
-VoxShift releases are signed with **Authenticode** using a certificate and private key that you control. The key lives in
-two **GitHub Actions repository secrets**; no cloud signing service, Azure account or external identity verification is
-involved.
+VoxShift releases are signed with **Authenticode** using a key that you control. The only thing stored in GitHub is **one
+repository secret, `VOXSHIFT_SIGNING_KEY`** (a passphrase). There is no certificate file, no cloud signing service, no
+Azure account and no external identity verification.
 
 > [!IMPORTANT]
-> The default certificate is **self-signed**. Read [What a self-signed signature does and does not give you](#what-a-self-signed-signature-does-and-does-not-give-you)
-> before telling users anything about it.
+> The certificate is **self-signed**. Read [What a self-signed signature does and does not give you](#what-a-self-signed-signature-does-and-does-not-give-you)
+> before telling users anything about it, and [Choosing the passphrase](#choosing-the-passphrase).
 
-## Quick start (about 5 minutes, once)
+## Quick start
 
-1. **On a Windows PC**, open PowerShell in a clone of the repository (or just download the script) and run:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\scripts\create-signing-certificate.ps1
-   ```
-
-   Choose a password of at least 16 characters when asked. The script writes three files to
-   `Documents\VoxShift-signing\` (outside the repository) and prints the certificate **thumbprint**:
-
-   | File | Contains | What to do |
-   |---|---|---|
-   | `VoxShift-codesign.pfx` | certificate **and private key**, password-protected | **Back it up** (see below). Never commit it. |
-   | `VoxShift-codesign.cer` | public certificate only | Safe to share or commit. Lets users compare the thumbprint. |
-   | `WINDOWS_CODESIGN_PFX_BASE64.txt` | the PFX as Base64 | Paste into the first secret, then **delete the file**. |
-
-2. **Add two repository secrets** at *Settings → Secrets and variables → Actions → New repository secret*:
+1. **Create the secret** at *Settings → Secrets and variables → Actions → New repository secret*:
 
    | Secret name | Value |
    |---|---|
-   | `WINDOWS_CODESIGN_PFX_BASE64` | the entire content of `WINDOWS_CODESIGN_PFX_BASE64.txt` |
-   | `VOXSHIFT_SIGNING_KEY` | the PFX **password** you chose (alias: `WINDOWS_CODESIGN_PFX_PASSWORD`; the release uses `VOXSHIFT_SIGNING_KEY` when it exists) |
+   | `VOXSHIFT_SIGNING_KEY` | a long **random** passphrase (24+ random characters, e.g. from a password manager) |
 
-   Prefer the command line? With the [GitHub CLI](https://cli.github.com/) (`gh auth login` once):
+   Keep a copy of the passphrase in a password manager. **It is the signing key**: lose it and future releases get a new
+   identity; leak it and anybody can sign as VoxShift.
+2. **Release:** run *Actions → Release → Run workflow* (tag `v0.0.8`) or push the tag. The first step validates the secret, so a
+   missing secret fails within seconds with instructions, before anything is built or published.
+3. **Note the key identity** printed by the run (*Signing key SHA-256*). It is also written into the release notes, and
+   it is what users compare. It stays the same for every release signed with the same passphrase.
 
-   ```powershell
-   Get-Content -Raw "$HOME\Documents\VoxShift-signing\WINDOWS_CODESIGN_PFX_BASE64.txt" | gh secret set WINDOWS_CODESIGN_PFX_BASE64 --repo crapclap161/voxshift
-   gh secret set VOXSHIFT_SIGNING_KEY --repo crapclap161/voxshift
-   ```
+## How the signing key works
 
-   (The second command prompts for the value.) Already have a `.pfx`? Produce the Base64 value yourself:
+Windows only accepts signatures made with a *certificate*, so the workflow builds one from the passphrase on every run:
 
-   ```powershell
-   [Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\path\to\certificate.pfx')) | Set-Clipboard
-   ```
+```
+passphrase ──PBKDF2-HMAC-SHA256, 600,000 iterations, fixed project salt──▶ ECDSA P-256 private key
+          ──▶ self-signed Code Signing certificate (created in memory) ──▶ signtool (SHA-256 + RFC 3161 timestamp)
+```
 
-3. **Optional pin:** add a repository *variable* (not a secret) `WINDOWS_CODESIGN_THUMBPRINT` with the thumbprint the
-   script printed. The release then refuses to sign if a different certificate is ever stored in the secret by mistake.
-4. **Release:** run the **Release** workflow (*Actions → Release → Run workflow*, tag `v0.0.8`) or push the tag. The
-   first thing it does is validate the secrets, so a missing or wrong secret fails within seconds with instructions,
-   before anything is built or published.
+- The same passphrase always gives the **same key**, so the signing identity persists across releases without storing a
+  certificate or key anywhere (`scripts/derived-signing-key.ps1`).
+- The certificate wrapper is rebuilt each run (new serial number and signature), so its *thumbprint* changes. The stable
+  identity is the **public-key SHA-256** ("key ID"). The verification pins that, not the thumbprint.
+- Nothing is written to disk except a short-lived temporary PFX that is imported with a non-exportable key and deleted at
+  once; the key is removed from the runner afterwards, also when the job fails. The secret is exposed only to the validate
+  and sign steps, passed through an environment variable (never a command line) and masked in logs.
+
+### Choosing the passphrase
+
+A normal certificate stores a random private key. Here the key is *calculated from the passphrase*, and every signed
+file contains the matching public key, so anyone can test guesses against it offline. That makes the strength of the
+passphrase the strength of the signing identity:
+
+- Use **24+ random characters** or **6+ random words** (not a sentence, name or reused password). The scripts refuse
+  anything shorter than 16 characters. With a truly random 24-character passphrase guessing is not feasible; with a
+  human-chosen one it may be.
+- Treat it like a private key: password manager, never in the repository, issues, chat or logs.
+- If you want the stronger classic setup (a random key in a password-protected PFX) it is supported too; see
+  [Using a certificate file instead](#using-a-certificate-file-instead).
 
 ## How the pipeline works
 
 `.github/workflows/release.yml`:
 
-1. **Validate signing certificate.** `scripts/sign-executable.ps1 -ValidateOnly` decodes the secrets in memory and checks
-   the password, private key, Code Signing key usage and validity period. Missing or invalid secrets stop the release.
+1. **Validate signing key.** `scripts/sign-executable.ps1 -ValidateOnly` checks the secret exists and builds the identity
+   in memory (key ID, Code Signing key usage, validity). Missing or invalid secrets stop the release.
 2. Validate the tag against `Directory.Build.props`, `CHANGELOG.md`, release notes and README screenshots; restore,
    format check, build, unit tests; `dotnet publish` (self-contained single file).
-3. **Sign** `publish/VoxShift.exe` with `signtool` (SHA-256) and add an **RFC 3161 timestamp** (DigiCert, with Sectigo
-   and GlobalSign as fallbacks; no timestamp means no release). The PFX is decoded to a private temporary file, imported
-   with a non-exportable key and deleted at once; the key is removed from the runner afterwards (also when the job fails).
-   The secrets are visible only to the validate and sign steps and are masked by GitHub in logs. They are passed through
-   environment variables, never on a command line, and are never printed.
-4. **Verify** (`scripts/verify-signature.ps1`): the file is signed and unmodified, signed by the **expected certificate**
-   (thumbprint taken from the secret), has a timestamp and a SHA-256 digest, and `signtool verify /pa` passes.
-5. Smoke test of the **signed** executable, then packaging (portable EXE, ZIP, `SHA256SUMS.txt`), **after** signing.
+3. **Sign** `publish/VoxShift.exe` (SHA-256) and add an **RFC 3161 timestamp** (DigiCert, with Sectigo and GlobalSign as
+   fallbacks; no timestamp means no release).
+4. **Verify** (`scripts/verify-signature.ps1`): the file is signed and unmodified, signed by the **expected key**, has a
+   timestamp and a SHA-256 digest, and `signtool verify /pa` passes.
+5. Smoke test of the **signed** executable, then packaging (portable EXE, ZIP, `SHA256SUMS.txt`) **after** signing.
 6. Verify again the portable EXE **and** the EXE inside the ZIP, check that both are identical, and that
    `SHA256SUMS.txt` contains the checksums of the files being uploaded.
-7. Create the GitHub Release. The release text gets a *Digital signature* section generated from the certificate itself
-   (signer, thumbprint, self-signed or publicly trusted).
+7. Create the GitHub Release. Its text gets a *Digital signature* section generated from the certificate (signer, key
+   ID, self-signed or publicly trusted).
 
-Ordinary CI (`ci.yml`, pull requests) never receives the secrets. It runs `scripts/test-signing.ps1`, which creates a
-**throwaway** certificate, signs a copy of the build and proves that the gates work: the signed file verifies and runs,
-while unsigned files, tampered files, a wrong expected certificate, a wrong password, missing secrets and
-self-signed-as-public-trust are all rejected. (Timestamping needs a network service, so only the release exercises it.) A second
-CI check fails if a key or PFX is ever committed.
+Ordinary CI (`ci.yml`, pull requests) never receives the secret. It runs `scripts/test-signing.ps1` with **throwaway**
+keys: the key derivation is checked against .NET's own elliptic-curve maths, the same passphrase must give the same
+key and another passphrase a different one; signed files must verify and run; and unsigned files, tampered files, a
+wrong key, a wrong password, missing secrets and "self-signed as publicly trusted" are all rejected. (Timestamping needs
+a network service, so only the release exercises it.) Another CI check fails if a key or PFX is ever committed.
 
 ## What a self-signed signature does and does not give you
 
 Four different things are easy to confuse:
 
-| | Self-signed (default) | Publicly trusted certificate |
+| | Self-signed (this setup) | Publicly trusted certificate |
 |---|---|---|
 | **Cryptographic integrity**: the file was not modified after signing | ✅ yes | ✅ yes |
-| **Identity of the key holder**: signed with *this* key (compare the thumbprint) | ✅ yes, if the user knows the thumbprint | ✅ yes, and a CA vouched for the publisher name |
+| **Identity of the key holder**: signed with *this* key (compare the key ID) | ✅ yes, if the user knows the key ID | ✅ yes, and a CA vouched for the publisher name |
 | **Public trust chain**: Windows trusts the certificate on its own | ❌ **no** | ✅ yes |
 | **SmartScreen reputation** | ❌ **not improved** | ⚠️ not guaranteed either; builds up with downloads |
 
-So with the self-signed key:
+So with this key:
 
 - Windows shows the publisher as unknown or untrusted and may still show *“Windows protected your PC”*.
 - The signature is **not** a “verified publisher” and must not be described as such.
 - `Get-AuthenticodeSignature` reports a status such as `UnknownError` or `NotTrusted` (untrusted root), *not* `Valid`.
-  A status of `HashMismatch` means the file was changed after signing.
-- It is still useful: it lets someone who knows the thumbprint confirm that a file really comes from the holder of the
-  VoxShift release key and was not tampered with, and it keeps the same identity across releases.
-- Publishing the public certificate in a GitHub repository does **not** make Windows trust it.
+  `HashMismatch` means the file was changed after signing.
+- It is still useful: someone who knows the key ID can confirm that a file comes from the holder of the VoxShift
+  release key and was not tampered with, and the identity stays the same across releases.
+- Publishing the key ID (or the public key) does **not** make Windows trust it.
 
 > Users should not be asked to install your certificate into their Trusted Root store. That would let anyone holding
 > the key sign software that Windows then trusts on their machine.
@@ -106,70 +105,67 @@ So with the self-signed key:
 
 1. **Checksum:** `Get-FileHash .\VoxShift-v0.0.8-win-x64-portable.exe -Algorithm SHA256` must equal the line in
    `SHA256SUMS.txt`.
-2. **Signature and thumbprint:**
+2. **Signature and key ID:**
 
    ```powershell
    $s = Get-AuthenticodeSignature .\VoxShift-v0.0.8-win-x64-portable.exe
-   $s.Status                      # NotTrusted / UnknownError for a self-signed key is expected; HashMismatch or NotSigned is NOT ok
+   $s.Status   # NotTrusted / UnknownError for a self-signed key is expected; HashMismatch or NotSigned is NOT ok
    $s.SignerCertificate.Subject
-   $s.SignerCertificate.Thumbprint   # must equal the thumbprint in the release notes
-   $s.TimeStamperCertificate.Subject # present = timestamped
+   # key ID: must equal the "Signing key SHA-256" in the release notes
+   [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($s.SignerCertificate.GetPublicKey())).Replace('-', '').ToLower()
+   $s.TimeStamperCertificate.Subject   # present = timestamped
    ```
 
-3. **Strict check (maintainers, administrator PowerShell):** this temporarily trusts only the pinned certificate to let
-   Windows verify the signature cryptographically, then removes it again:
+3. **Strict check (maintainers, administrator PowerShell):** this temporarily trusts only the pinned key to let Windows
+   verify the signature cryptographically, then removes it again:
 
    ```powershell
-   .\scripts\verify-signature.ps1 -Path .\VoxShift.exe -ExpectedThumbprint <thumbprint> -RequireTimestamp -TrustSelfSigned
+   .\scripts\verify-signature.ps1 -Path .\VoxShift.exe -ExpectedPublicKeySha256 <key id> -RequireTimestamp -TrustSelfSigned
    ```
 
-   The output lists integrity, signer, thumbprint, timestamp and states plainly that a self-signed certificate is *not*
+   The output lists integrity, signer, key ID, timestamp and states plainly that a self-signed certificate is *not*
    publicly trusted.
 
-## Backing up the key
+To see your own key ID without releasing, set the passphrase in an environment variable and run
+`$env:WINDOWS_CODESIGN_PFX_PASSWORD='<passphrase>'; .\scripts\sign-executable.ps1 -ValidateOnly` (it prints the key ID and
+signs nothing; close the shell afterwards so the passphrase isn't kept).
 
-The PFX is the **only** copy of the private key (the script removes it from your Windows certificate store).
+## Backing up and rotating
 
-- Keep **two** copies of `VoxShift-codesign.pfx` in different places (a password manager attachment and an offline USB
-  stick or encrypted cloud vault), and store the **password separately** from the file.
-- GitHub secrets cannot be read back, so the repository is *not* a backup.
-- If the key is lost or leaked you cannot recover it: create a new certificate (rotation, below). If it leaked,
-  delete the GitHub secrets immediately and say so in the next release notes.
-- Never commit the PFX, the Base64 text or the password. `.gitignore` blocks the usual file names and CI fails if key
-  files are committed.
+- **Backup:** the passphrase is the whole key. Store it in a password manager *and* an offline copy. GitHub secrets cannot
+  be read back, so the repository is not a backup.
+- **Rotate** (leak, or you want a different identity): set a new random `VOXSHIFT_SIGNING_KEY`. The new key ID is a **new
+  identity**; announce it in the next release notes. Old releases keep their valid signatures and timestamps. After a
+  leak, replace the secret first, then say so in the release notes.
+- The certificate's validity is fixed at 2026-01-01 to 2046-01-01; there is nothing to renew.
 
-## Rotating or renewing
+## Using a certificate file instead
 
-The certificate is valid for 10 years by default; the release warns when fewer than 60 days remain, and refuses to sign
-with an expired certificate. A new certificate is a **new identity** (different thumbprint), so rotate only when needed:
+Two optional extras use the same pipeline (set the repository secrets; no code change):
 
-1. Run `create-signing-certificate.ps1 -OutputDirectory <new folder>` (or `-Force`; the script refuses to overwrite by
-   default so the identity cannot change by accident).
-2. Replace both secrets (and the optional `WINDOWS_CODESIGN_THUMBPRINT` variable).
-3. Mention the new thumbprint in the next release notes. Old releases keep their valid signatures and timestamps.
+| Secret | Value |
+|---|---|
+| `WINDOWS_CODESIGN_PFX_BASE64` | the `.pfx`, Base64-encoded |
+| `VOXSHIFT_SIGNING_KEY` | that PFX's **password** (alias: `WINDOWS_CODESIGN_PFX_PASSWORD`) |
 
-Rotation after a leak: delete the secrets first, then follow the steps above.
-
-## Upgrading to a publicly trusted certificate later
-
-The pipeline needs no redesign. Buy or obtain an OV/EV code-signing certificate that can be exported as a PFX (note
-that many CAs issue keys on hardware tokens or cloud HSMs which cannot be exported; check this before buying), then:
-
-1. Replace `WINDOWS_CODESIGN_PFX_BASE64` and `WINDOWS_CODESIGN_PFX_PASSWORD` with the new PFX and its password
-   (and update or remove `WINDOWS_CODESIGN_THUMBPRINT`).
-2. The workflow detects that the certificate is not self-signed, then requires that **Windows itself reports the
-   signature as `Valid`** (a trusted chain) instead of pinning a self-signed certificate. Everything else is unchanged.
-3. Update the README and release notes wording about trust. Even then SmartScreen reputation builds over time and is
-   not guaranteed.
+- **A random stored key** (stronger than a derived one): create a self-signed certificate once with
+  `scripts/create-signing-certificate.ps1` on Windows (password ≥ 16 characters; it writes the PFX, a public `.cer` and the
+  Base64 text file *outside* the repository and prints next steps). `Get-Content -Raw <that .txt> | gh secret set WINDOWS_CODESIGN_PFX_BASE64`
+  uploads it. Back up the PFX and its password, and delete the Base64 file afterwards. An optional repository variable
+  `WINDOWS_CODESIGN_THUMBPRINT` pins the certificate.
+- **A publicly trusted OV/EV certificate** that can be exported as PFX (many CAs issue keys on hardware tokens that cannot
+  be exported; check before buying). The workflow detects that the certificate is not self-signed and then requires
+  that **Windows itself reports the signature `Valid`** instead of pinning a self-signed key. Update the README and
+  release-notes wording about trust; SmartScreen reputation still builds over time and is not guaranteed.
 
 Providers that sign in their own cloud (Azure Artifact Signing, SignPath, DigiCert KeyLocker, …) need their own signing
-step and are intentionally not used here.
+step and are intentionally not used.
 
 ## Status
 
 | | |
 |---|---|
-| Signing, verification and checksum pipeline | Implemented in `release.yml`; tooling tested by CI with a throwaway certificate |
-| `WINDOWS_CODESIGN_PFX_BASE64`, `WINDOWS_CODESIGN_PFX_PASSWORD` | **Owner action required** (quick start above) |
-| Certificate type | Self-signed (not publicly trusted) |
-| Signed releases published | None until the secrets exist: v0.0.7 and older are unsigned |
+| Signing, verification and checksum pipeline | Implemented in `release.yml`; tooling tested by CI with throwaway keys |
+| `VOXSHIFT_SIGNING_KEY` repository secret | Created by the owner |
+| Key type | Self-signed, derived from the passphrase (not publicly trusted) |
+| Signed releases published | None yet: v0.0.7 and older are unsigned; v0.0.8 is released by running the workflow |

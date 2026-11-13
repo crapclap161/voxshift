@@ -36,12 +36,12 @@ jobs:
 
       # Fail fast, before building anything: releases are never published unsigned. The two secrets are exposed to
       # the signing steps only (not job-wide), so no other step or third-party action can read them.
-      - name: Validate signing certificate (secrets)
+      - name: Validate signing key (secrets)
         id: cert
         shell: pwsh
         env:
-          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
-          WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.VOXSHIFT_SIGNING_KEY || secrets.WINDOWS_CODESIGN_PFX_PASSWORD }} # VOXSHIFT_SIGNING_KEY = the PFX password
+          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }} # optional: only for a certificate file
+          WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.VOXSHIFT_SIGNING_KEY || secrets.WINDOWS_CODESIGN_PFX_PASSWORD }} # VOXSHIFT_SIGNING_KEY = passphrase that defines the signing key (or the PFX password)
           WINDOWS_CODESIGN_THUMBPRINT: ${{ vars.WINDOWS_CODESIGN_THUMBPRINT }} # optional pin
         run: ./scripts/sign-executable.ps1 -ValidateOnly
 
@@ -94,8 +94,8 @@ jobs:
       - name: Sign VoxShift.exe (Authenticode, SHA-256, RFC 3161 timestamp)
         shell: pwsh
         env:
-          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}
-          WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.VOXSHIFT_SIGNING_KEY || secrets.WINDOWS_CODESIGN_PFX_PASSWORD }} # VOXSHIFT_SIGNING_KEY = the PFX password
+          WINDOWS_CODESIGN_PFX_BASE64: ${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }} # optional: only for a certificate file
+          WINDOWS_CODESIGN_PFX_PASSWORD: ${{ secrets.VOXSHIFT_SIGNING_KEY || secrets.WINDOWS_CODESIGN_PFX_PASSWORD }} # VOXSHIFT_SIGNING_KEY = passphrase that defines the signing key (or the PFX password)
           WINDOWS_CODESIGN_THUMBPRINT: ${{ vars.WINDOWS_CODESIGN_THUMBPRINT }}
         run: ./scripts/sign-executable.ps1 -Path publish/VoxShift.exe
 
@@ -110,7 +110,7 @@ jobs:
         shell: pwsh
         run: |
           $mode = if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { '-TrustSelfSigned' } else { '-RequirePublicTrust' }
-          ./scripts/verify-signature.ps1 -Path publish/VoxShift.exe -ExpectedThumbprint '${{ steps.cert.outputs.thumbprint }}' -RequireTimestamp $mode
+          ./scripts/verify-signature.ps1 -Path publish/VoxShift.exe -ExpectedPublicKeySha256 '${{ steps.cert.outputs.key_sha256 }}' -RequireTimestamp $mode
 
       # The smoke test runs the SIGNED binary, so a signature that breaks the single-file bundle is caught here.
       - name: Smoke test (signed executable)
@@ -133,7 +133,7 @@ jobs:
           $zipExe = Get-ChildItem $extract -Recurse -Filter VoxShift.exe | Select-Object -First 1
           if (-not $zipExe) { throw 'VoxShift.exe not found inside the ZIP.' }
           $mode = if ('${{ steps.cert.outputs.self_signed }}' -eq 'true') { '-TrustSelfSigned' } else { '-RequirePublicTrust' }
-          ./scripts/verify-signature.ps1 -Path $portable, $zipExe.FullName -ExpectedThumbprint '${{ steps.cert.outputs.thumbprint }}' -RequireTimestamp $mode
+          ./scripts/verify-signature.ps1 -Path $portable, $zipExe.FullName -ExpectedPublicKeySha256 '${{ steps.cert.outputs.key_sha256 }}' -RequireTimestamp $mode
           if ((Get-FileHash $portable).Hash -ne (Get-FileHash $zipExe.FullName).Hash) { throw 'Portable EXE and the EXE inside the ZIP differ.' }
           # SHA256SUMS.txt must describe exactly the files that are about to be uploaded.
           $lines = Get-Content dist/SHA256SUMS.txt
@@ -150,7 +150,7 @@ jobs:
         run: |
           $selfSigned = '${{ steps.cert.outputs.self_signed }}' -eq 'true'
           $trust = if ($selfSigned) {
-            "**Self-signed certificate.** The signature proves the file is unmodified and was signed with the key below, but Windows does not trust this certificate by itself (it is not issued by a public certification authority), so it does not establish a verified publisher and SmartScreen warnings can still appear. Compare the thumbprint to confirm the file comes from the VoxShift release key."
+            "**Self-signed certificate.** The signature proves the file is unmodified and was signed with the key identified below, but Windows does not trust this certificate by itself (it is not issued by a public certification authority), so it does not establish a verified publisher and SmartScreen warnings can still appear. Compare the key fingerprint to confirm the file comes from the VoxShift release key."
           } else {
             "Signed with a certificate that chains to a root trusted by Windows. SmartScreen reputation is separate and can still take time to build."
           }
@@ -163,7 +163,7 @@ jobs:
           | | |
           |---|---|
           | Signer | ``${{ steps.cert.outputs.subject }}`` |
-          | SHA-1 thumbprint | ``${{ steps.cert.outputs.thumbprint }}`` |
+          | Signing key SHA-256 (identity) | ``${{ steps.cert.outputs.key_sha256 }}`` |
           | Digest / timestamp | SHA-256, RFC 3161 timestamped |
           | Publicly trusted | $(if ($selfSigned) { 'No' } else { 'Yes' }) |
 

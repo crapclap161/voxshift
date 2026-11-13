@@ -49,7 +49,7 @@ It is one file. No installer, nothing to extract.
 
 > [!NOTE]
 > **About Windows security warnings.** From **v0.0.8**, `VoxShift.exe` is signed with a **self-signed** certificate that
-> belongs to the VoxShift project. That lets you confirm the file is unmodified and comes from the VoxShift release key,
+> belongs to the VoxShift project. That lets you confirm the file is unmodified and comes from the VoxShift release key (compare the key fingerprint in the release notes),
 > but Windows does **not** trust a self-signed certificate on its own and does **not** treat it as a verified publisher.
 > So *“Windows protected your PC”* (SmartScreen) **can still appear**. That is expected: see
 > [Windows warns me when I start VoxShift](#windows-warns-me-when-i-start-voxshift). Versions up to v0.0.7 are not signed.
@@ -315,7 +315,7 @@ If you extracted the ZIP, you can avoid the prompt for every file: right-click t
 
 | Question | v0.0.8 |
 |---|---|
-| Is `VoxShift.exe` digitally signed (Authenticode, SHA-256, timestamped)? | Yes, with a **self-signed** certificate whose thumbprint is shown in the release notes |
+| Is `VoxShift.exe` digitally signed (Authenticode, SHA-256, timestamped)? | Yes, with a **self-signed** certificate whose key fingerprint is shown in the release notes |
 | Can I check that the file is unmodified and made with the VoxShift release key? | Yes, see below |
 | Does Windows trust the certificate by itself / show a verified publisher? | **No** |
 | Will SmartScreen warnings disappear? | **No**, they can still appear |
@@ -338,7 +338,8 @@ The hash must equal the one listed for that file name in `SHA256SUMS.txt`. To in
 ```powershell
 $s = Get-AuthenticodeSignature .\VoxShift-v0.0.8-win-x64-portable.exe
 $s.Status                          # see the note below
-$s.SignerCertificate.Thumbprint    # must equal the thumbprint in the release notes
+# key fingerprint: must equal "Signing key SHA-256" in the release notes
+[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($s.SignerCertificate.GetPublicKey())).Replace('-', '').ToLower()
 ```
 
 For a self-signed certificate `Status` is normally `NotTrusted` or `UnknownError` (Windows doesn't trust the
@@ -431,8 +432,8 @@ src/VoxShift.Core/             platform-independent, unit tested: router, mix po
 src/VoxShift.Audio/            Windows audio: WASAPI capture/render (NAudio), process-loopback interop, devices, engine
 src/VoxShift/                  WPF app: design system (Themes/Theme.xaml), views, view models, tray, hotkey
 tests/VoxShift.Core.Tests/     xUnit tests
-scripts/                       package.ps1, smoke-test.ps1, signing: create-signing-certificate / sign-executable /
-                               verify-signature / test-signing .ps1
+scripts/                       package.ps1, smoke-test.ps1, signing: sign-executable / verify-signature /
+                               derived-signing-key / create-signing-certificate / test-signing .ps1
 .github/workflows/             ci.yml, release.yml, screenshots.yml
 docs/                          screenshots, release notes, code-signing guide
 ```
@@ -445,9 +446,9 @@ workflow, which renders the real windows with sample data).
 The version lives in `Directory.Build.props` (`<VersionPrefix>`); every release needs a matching `CHANGELOG.md` entry and
 `docs/release-notes/vX.Y.Z.md`. To release: run the **Screenshots** workflow on the release branch (it commits fresh
 screenshots), then push the tag `vX.Y.Z` (or run **Release** manually with the tag). The release workflow builds, tests,
-**signs** `VoxShift.exe` (Authenticode, self-signed certificate stored in GitHub secrets), verifies the signature,
+**signs** `VoxShift.exe` (Authenticode, self-signed key defined by a GitHub secret), verifies the signature,
 smoke-tests the signed file, packages it, verifies the packaged files and checksums, and publishes `VoxShift-vX.Y.Z-win-x64-portable.exe`, `VoxShift-vX.Y.Z-win-x64.zip` and
-`SHA256SUMS.txt`. Signing needs a one-time setup of two repository secrets, described in
-[docs/code-signing.md](docs/code-signing.md); without them the release workflow stops before publishing.
+`SHA256SUMS.txt`. Signing needs one repository secret (`VOXSHIFT_SIGNING_KEY`), described in
+[docs/code-signing.md](docs/code-signing.md); without it the release workflow stops before publishing.
 
 </details>

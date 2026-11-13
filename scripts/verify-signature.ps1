@@ -28,6 +28,8 @@
 param(
     [Parameter(Mandatory)] [string[]] $Path,
     [string] $ExpectedThumbprint = '',
+    # SHA-256 (hex) of the signer's public key bytes. The stable identity of a passphrase-derived signing key.
+    [string] $ExpectedPublicKeySha256 = '',
     [switch] $RequireTimestamp,
     [switch] $TrustSelfSigned,
     [switch] $RequirePublicTrust
@@ -39,9 +41,10 @@ Add-Type -AssemblyName System.Security
 $X509 = 'System.Security.Cryptography.X509Certificates'
 $codeSigningEku = '1.3.6.1.5.5.7.3.3'
 $expected = ($ExpectedThumbprint -replace '\s', '').ToUpperInvariant()
+$expectedKey = ($ExpectedPublicKeySha256 -replace '\s', '').ToLowerInvariant()
 
 if ($TrustSelfSigned -and $RequirePublicTrust) { throw '-TrustSelfSigned and -RequirePublicTrust are mutually exclusive.' }
-if ($TrustSelfSigned -and -not $expected) { throw '-TrustSelfSigned requires -ExpectedThumbprint: only one known certificate may be trusted.' }
+if ($TrustSelfSigned -and -not $expected -and -not $expectedKey) { throw '-TrustSelfSigned requires -ExpectedThumbprint or -ExpectedPublicKeySha256: only one known identity may be trusted.' }
 
 $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
     Sort-Object FullName -Descending | Select-Object -First 1
@@ -69,6 +72,9 @@ try {
             throw "$name : signed with certificate $($cert.Thumbprint), expected $expected."
         }
 
+        $keySha = [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($cert.GetPublicKey())).Replace('-', '').ToLowerInvariant()
+        if ($expectedKey -and $keySha -ne $expectedKey) { throw "$name : signed with a different key (public key SHA-256 $keySha, expected $expectedKey)." }
+
         if ($RequireTimestamp -and -not $sig.TimeStamperCertificate) { throw "$name : the signature has no RFC 3161 timestamp." }
 
         # --- 3. Public trust ------------------------------------------------------------------------------------
@@ -77,7 +83,7 @@ try {
 
         if ($selfSigned) {
             if (-not $TrustSelfSigned) {
-                throw "$name : self-signed signature (status '$($sig.Status)'). Windows cannot confirm integrity for an untrusted root; re-run with -TrustSelfSigned -ExpectedThumbprint <thumbprint> (administrator)."
+                throw "$name : self-signed signature (status '$($sig.Status)'). Windows cannot confirm integrity for an untrusted root; re-run with -TrustSelfSigned -ExpectedThumbprint <thumbprint> or -ExpectedPublicKeySha256 <key id> (administrator)."
             }
             if (-not $trustedRootStore) {
                 $trustedRootStore = New-Object "$X509.X509Store" 'Root', 'LocalMachine'
@@ -104,6 +110,7 @@ try {
         Write-Host "OK  $name"
         Write-Host "    integrity     : valid (unmodified since signing)"
         Write-Host "    signer        : $($cert.Subject)"
+        Write-Host "    key SHA-256   : $keySha$(if ($expectedKey) { '  (matches the expected key)' })"
         Write-Host "    thumbprint    : $($cert.Thumbprint)$(if ($expected) { '  (matches the expected certificate)' })"
         Write-Host "    timestamp     : $timestamp"
         if ($selfSigned) {
