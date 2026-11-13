@@ -117,7 +117,7 @@ try {
     $fs = [IO.File]::Open($derivedBad, 'Open', 'ReadWrite')
     try { $fs.Position = 1MB; $b = $fs.ReadByte(); $fs.Position = 1MB; $fs.WriteByte([byte](($b + 1) % 256)) } finally { $fs.Dispose() }
     Assert-Rejected 'modified derived-key file' { & (Join-Path $scripts 'verify-signature.ps1') -Path $derivedBad -ExpectedPublicKeySha256 $first.KeySha256 -TrustSelfSigned }
-    if (Get-ChildItem Cert:\CurrentUser\My | Where-Object Subject -like '*key derived from a passphrase*') { throw 'The derived signing certificate was not removed from the store.' }
+    if (Get-ChildItem Cert:\CurrentUser\My | Where-Object Subject -like '*passphrase-derived key*') { throw 'The derived signing certificate was not removed from the store.' }
 
     Write-Host 'Signing tooling test passed.'
 } finally {

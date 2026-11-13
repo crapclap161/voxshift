@@ -92,7 +92,7 @@ function Get-PublicKeySha256([Security.Cryptography.X509Certificates.X509Certifi
 function New-DerivedSigningCertificate {
     <# Returns @{ Pfx = byte[]; PfxPassword = SecureString (random, for the in-memory/temporary PFX only) }. #>
     param([Parameter(Mandatory)] [string] $Passphrase,
-          [string] $Subject = 'CN=VoxShift release signing (self-signed, key derived from a passphrase), O=VoxShift project (github.com/crapclap161/voxshift)')
+          [string] $Subject = 'CN=VoxShift release signing (self-signed - passphrase-derived key), O=VoxShift project (github.com/crapclap161/voxshift)')
 
     $d = Get-DerivedPrivateScalar $Passphrase
     $q = Get-PublicPoint $d
