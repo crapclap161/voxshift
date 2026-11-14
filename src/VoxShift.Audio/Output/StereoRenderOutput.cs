@@ -58,7 +58,7 @@ public sealed class StereoRenderOutput : IDisposable
             Channels = Math.Clamp(mix.Channels, 1, 8);
             _source.SetOutputRate(SampleRate);
 
-            var provider = new SourceWaveProvider(_source, SampleRate, Channels);
+            var provider = new SourceWaveProvider(_source, SampleRate, Channels, _log);
             var output = new WasapiOut(_device, AudioClientShareMode.Shared, useEventSync: true, latency: LatencyMs);
             output.PlaybackStopped += OnPlaybackStopped;
             output.Init(provider);
@@ -111,13 +111,16 @@ public sealed class StereoRenderOutput : IDisposable
     private sealed class SourceWaveProvider : IWaveProvider
     {
         private readonly IStereoRenderSource _source;
+        private readonly ILog _log;
         private readonly int _channels;
+        private bool _renderFailureLogged;
         private float[] _stereo = new float[4096 * 2];
         private float[] _mapped = new float[4096 * 8];
 
-        public SourceWaveProvider(IStereoRenderSource source, int sampleRate, int channels)
+        public SourceWaveProvider(IStereoRenderSource source, int sampleRate, int channels, ILog log)
         {
             _source = source;
+            _log = log;
             _channels = channels;
             WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
         }
@@ -135,9 +138,15 @@ public sealed class StereoRenderOutput : IDisposable
             {
                 _source.Render(_stereo, frames);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                // Play silence rather than stopping the device, but say so: logged once per output, never per block.
                 Array.Clear(_stereo, 0, frames * 2);
+                if (!_renderFailureLogged)
+                {
+                    _renderFailureLogged = true;
+                    _log.Error("Rendering audio failed; the output plays silence for the affected blocks.", ex);
+                }
             }
 
             int bytes = frames * _channels * 4;

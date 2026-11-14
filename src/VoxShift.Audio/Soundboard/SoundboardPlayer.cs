@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using VoxShift.Core.Audio;
 using VoxShift.Core.Logging;
 
@@ -33,9 +32,8 @@ public sealed class SoundboardPlayer : IDisposable
     private readonly Func<bool> _cableActive;
     private readonly Func<bool> _monitorActive;
     private readonly ILog _log;
-    private readonly ConcurrentDictionary<string, Lazy<Task<AudioClip>>> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, long> _lastUsed = new(StringComparer.OrdinalIgnoreCase);
-    private bool _disposed;
+    private readonly ClipCache _cache = new(CacheBudgetBytes);
+    private volatile bool _disposed;
 
     public SoundboardPlayer(AudioRouter router, MonitorMix monitor, Func<bool> cableActive, Func<bool> monitorActive, ILog log)
     {
@@ -55,7 +53,7 @@ public sealed class SoundboardPlayer : IDisposable
     /// <param name="ignoreOutputState">Diagnostics only: play into the mixers even if no device is running.</param>
     public async Task<PlayResult> PlayAsync(string soundId, string path, bool ignoreOutputState = false)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_disposed) return new PlayResult(PlayStatus.Failed, "VoxShift is shutting down.");
         if (!File.Exists(path)) return new PlayResult(PlayStatus.Missing, $"File not found: {path}");
 
         bool toCable = ignoreOutputState || _cableActive();
@@ -100,9 +98,17 @@ public sealed class SoundboardPlayer : IDisposable
         if (_monitorActive()) rates.Add(_monitor.OutputRate);
         foreach (var (path, rate) in paths.Where(File.Exists).Take(64).SelectMany(p => rates.Select(r => (p, r))))
         {
-            _ = GetClipAsync(path, rate).ContinueWith(
-                t => _log.Debug($"Preload failed for {path}: {t.Exception?.GetBaseException().Message}"),
-                CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+            try
+            {
+                _ = GetClipAsync(path, rate).ContinueWith(
+                    t => _log.Debug($"Preload failed for {path}: {t.Exception?.GetBaseException().Message}"),
+                    CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The file vanished or is unreadable right now; playing it later reports the problem to the user.
+                _log.Debug($"Preload skipped for {path}: {ex.Message}");
+            }
         }
     }
 
@@ -126,25 +132,26 @@ public sealed class SoundboardPlayer : IDisposable
         return clip;
     }
 
-    /// <summary>Forgets cached audio of a file (e.g. after relinking).</summary>
-    public void Invalidate(string path)
+    /// <summary>
+    /// Playback progress of every sound for the UI. Follows what VRChat hears; while the virtual cable is not running
+    /// and sounds only play in your headphones, it follows the monitor instead, so a playing button still shows (and
+    /// can be stopped) as playing.
+    /// </summary>
+    public void CopyProgress(ICollection<VoiceProgress> target)
     {
-        foreach (var key in _cache.Keys.Where(k => k.StartsWith(path + "|", StringComparison.OrdinalIgnoreCase)).ToList())
-        {
-            _cache.TryRemove(key, out _);
-            _lastUsed.TryRemove(key, out _);
-        }
+        _router.Soundboard.CopyProgress(target);
+        if (target.Count == 0) _monitor.Mixer.CopyProgress(target);
     }
+
+    /// <summary>Forgets cached audio of a file (e.g. after relinking).</summary>
+    public void Invalidate(string path) => _cache.Invalidate(path + "|");
 
     private Task<AudioClip> GetClipAsync(string path, int rate)
     {
+        // Length and write time are part of the key, so an edited or replaced file is decoded again.
         var info = new FileInfo(path);
         string key = $"{path}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{rate}";
-        _lastUsed[key] = Environment.TickCount64;
-        var lazy = _cache.GetOrAdd(key, _ => new Lazy<Task<AudioClip>>(() => Task.Run(() => LoadClip(path, rate))));
-        var task = lazy.Value;
-        if (task.IsFaulted) _cache.TryRemove(key, out _); // retry next time (file may have been fixed)
-        return task;
+        return _cache.GetOrAddAsync(key, () => LoadClip(path, rate));
     }
 
     private AudioClip LoadClip(string path, int rate)
@@ -152,31 +159,7 @@ public sealed class SoundboardPlayer : IDisposable
         var decoded = AudioFileDecoder.Decode(path);
         var clip = decoded.ResampleTo(rate);
         _log.Debug($"Soundboard loaded \"{Path.GetFileName(path)}\" ({clip.Duration.TotalSeconds:0.0} s, {decoded.SampleRate} → {rate} Hz).");
-        TrimCache();
         return clip;
-    }
-
-    private void TrimCache()
-    {
-        long total = 0;
-        var entries = new List<(string Key, long Size, long Used)>();
-        foreach (var (key, lazy) in _cache)
-        {
-            if (!lazy.IsValueCreated || !lazy.Value.IsCompletedSuccessfully) continue;
-            long size = lazy.Value.Result.SizeInBytes;
-            total += size;
-            entries.Add((key, size, _lastUsed.TryGetValue(key, out long u) ? u : 0));
-        }
-
-        foreach (var e in entries.OrderBy(e => e.Used))
-        {
-            if (total <= CacheBudgetBytes) break;
-            if (_cache.TryRemove(e.Key, out _))
-            {
-                _lastUsed.TryRemove(e.Key, out _);
-                total -= e.Size; // playing voices keep their own reference, so eviction never cuts a sound
-            }
-        }
     }
 
     public void Dispose()
@@ -186,6 +169,5 @@ public sealed class SoundboardPlayer : IDisposable
         _router.Soundboard.Clear();
         _monitor.Mixer.Clear();
         _cache.Clear();
-        _lastUsed.Clear();
     }
 }

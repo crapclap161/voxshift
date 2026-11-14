@@ -40,10 +40,9 @@ public static class AudioFileDecoder
         if (stream.Length > MaxWavBytes) return null;
         var bytes = new byte[stream.Length];
         stream.ReadExactly(bytes);
-        var clip = WavDecoder.TryDecode(bytes);
-        if (clip is null) return null;
-        int max = MaxSeconds * clip.SampleRate;
-        return clip.Frames <= max ? clip : new AudioClip(clip.Samples.AsSpan(0, max * 2).ToArray(), clip.SampleRate);
+        var clip = WavDecoder.TryDecode(bytes, maxSeconds: MaxSeconds);
+        if (clip is { Frames: 0 }) throw new AudioCaptureException("The file contains no audio.");
+        return clip;
     }
 
     /// <summary>Decodes through Windows Media Foundation (also used directly by the smoke test).</summary>

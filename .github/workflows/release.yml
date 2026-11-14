@@ -49,12 +49,27 @@ jobs:
         with:
           dotnet-version: "10.0.1xx"
 
+      # Releases are cut from main only: the released commit must already be part of its history.
+      - name: Verify the commit is on main
+        shell: pwsh
+        run: |
+          git fetch --quiet origin "+refs/heads/main:refs/remotes/origin/main"
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw "Commit $(git rev-parse HEAD) is not on main. Merge it first, then release from main." }
+
+      # The tag arrives through environment variables, never by expanding it into the script text, and it must be a
+      # plain version tag before anything else looks at it.
       - name: Verify tag matches project version
         id: version
         shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           $v = (dotnet msbuild Directory.Build.props -getProperty:VersionPrefix).Trim()
-          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ inputs.tag }}" } else { "${{ github.ref_name }}" }
+          $tag = if ($env:EVENT_NAME -eq 'workflow_dispatch') { $env:INPUT_TAG } else { $env:REF_NAME }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') { throw "'$tag' is not a release tag of the form vX.Y.Z." }
           if ($tag -ne "v$v") { throw "Tag '$tag' does not match the project version 'v$v' in Directory.Build.props." }
           if (-not (Select-String -Path CHANGELOG.md -Pattern "^## \[$([regex]::Escape($v))\]" -Quiet)) { throw "CHANGELOG.md has no entry for $v." }
           if (-not (Test-Path "docs/release-notes/v$v.md")) { throw "Missing release notes docs/release-notes/v$v.md." }
@@ -174,7 +189,7 @@ jobs:
           Set-Content -Path dist/release-body.md -Value $body -Encoding utf8
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4 (pinned: it holds the write token)
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}

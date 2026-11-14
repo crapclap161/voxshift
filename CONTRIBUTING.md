@@ -23,15 +23,17 @@ and how pull requests are reviewed.
    ```
 
 The solution builds on Windows, Linux and macOS (`EnableWindowsTargeting`), but **running** the app and anything
-that touches audio devices requires Windows 11 (or Windows 10 build 20348+) with a virtual audio cable such as
-VB-CABLE.
+that touches audio devices requires Windows 11 with a virtual audio cable such as VB-CABLE.
+
+[docs/development.md](docs/development.md) explains the architecture, the threading rules of the audio pipeline, the
+tests and the release process in detail.
 
 ## Project layout
 
 | Project | Responsibility | Platform |
 |---|---|---|
-| `src/VoxShift.Core` | DSP (router, mix policy, resampler, limiter), dock geometry, settings, logging, process grouping, hotkey parsing | any (unit tested) |
-| `src/VoxShift.Audio` | WASAPI capture/render, process-loopback COM interop, device monitoring, `AudioEngine` | Windows |
+| `src/VoxShift.Core` | DSP (router, mix policy, soundboard mixer, clip cache, resampler, limiter, WAV decoder), soundboard library, dock geometry, settings, logging, process grouping, hotkey parsing, close/shutdown lifecycle | any (unit tested) |
+| `src/VoxShift.Audio` | WASAPI capture/render, process-loopback COM interop, device monitoring, `AudioEngine`, soundboard player and file decoding | Windows |
 | `src/VoxShift` | WPF UI: main window, soundboard dock window + controller, VR Controller window, view models, tray icon, global hotkey | Windows |
 | `tests/VoxShift.Core.Tests` | xUnit tests for `VoxShift.Core` | any |
 
@@ -59,6 +61,7 @@ dotnet test tests/VoxShift.Core.Tests
 - **Formatting** follows `.editorconfig`. Run `dotnet format VoxShift.sln` before committing.
 - **Audio thread safety.** Never allocate, block or log on the render/capture hot path. Device/COM work belongs on
   the engine thread.
+- **No silent failures.** Catch only what you can handle, and log what you swallow (once, not per audio block).
 - **Deterministic mixing.** Which sources are transmitted is decided only by `MixPolicy` (mode, talk over music,
   soundboard auto-mute, real playback state). With talk over music off, microphone and application audio are never
   mixed. Changes in `AudioRouter`/`MixPolicy`/`SourceChannel` need tests proving the behaviour matrix still holds.
@@ -71,7 +74,7 @@ On Windows, the smoke test runs the real executable:
 
 ```powershell
 dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
-./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion 0.0.9
+./scripts/smoke-test.ps1 -ExePath publish/VoxShift.exe -ExpectedVersion 0.1.0
 ```
 
 ## Pull requests
@@ -81,8 +84,9 @@ dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
 3. Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages, e.g.
    `fix(audio): recover when the cable is re-enabled`.
 4. Add an entry under **[Unreleased]** in `CHANGELOG.md` for user-visible changes.
-5. Describe *what* changed and *why*, and how you tested it (especially manual audio tests on real hardware).
-6. CI must be green before review. A maintainer merges with squash-merge.
+5. Describe *what* changed and *why*, and how you tested it (especially manual audio tests on real hardware; the
+   checklist is in [docs/development.md](docs/development.md#manual-checks-before-a-release)).
+6. CI must be green before review.
 
 ## Releasing (maintainers)
 
@@ -91,7 +95,7 @@ dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
 3. Add `docs/release-notes/vX.Y.Z.md`.
 4. Run the **Screenshots** workflow on the release branch and wait until it has committed (it has no automatic
    trigger, so nothing is pushed after the tag).
-5. Merge to `main`, then tag and push:
+5. Merge to `main` and wait for CI on `main` to pass, then tag and push:
 
    ```bash
    git tag -a vX.Y.Z -m "VoxShift vX.Y.Z"
@@ -101,11 +105,12 @@ dotnet publish src/VoxShift/VoxShift.csproj -c Release -r win-x64 -o publish
    git push origin vX.Y.Z
    ```
 
-Alternatively, start the **Release** workflow manually in the Actions tab and enter the tag (e.g. `vX.Y.Z`).
-It creates the tag on the selected commit together with the release.
+Alternatively, start the **Release** workflow manually in the Actions tab on `main` and enter the tag (e.g.
+`vX.Y.Z`). It creates the tag on that commit together with the release.
 
-The release workflow refuses to publish if the tag, `VersionPrefix`, changelog entry or release notes don't match, or
-if a screenshot the README embeds is missing from the tagged commit.
+The release workflow refuses to publish if the commit is not part of `main`, if the tag, `VersionPrefix`, changelog
+entry or release notes don't match, if a screenshot the README embeds is missing from the commit, or if signing or
+any verification step fails. Signing is described in [docs/code-signing.md](docs/code-signing.md).
 
 ## Reporting bugs and security issues
 

@@ -14,17 +14,25 @@ public sealed class SoundboardMixer
     /// <summary>Hard limit of simultaneous voices; the oldest voice is faded out when exceeded.</summary>
     public const int MaxVoices = 32;
 
+    /// <summary>
+    /// Absolute bound of the voice list. Fading voices only disappear while the mixer is rendered, so when sounds are
+    /// started faster than that (or nothing renders at all, e.g. the device just went away) the oldest voice is
+    /// dropped outright instead of letting the list grow.
+    /// </summary>
+    public const int HardVoiceLimit = MaxVoices * 2;
+
     private const double FadeInMs = 3;
     private const double FadeOutMs = 12;
 
     private readonly object _sync = new();
-    private readonly List<Voice> _voices = new(MaxVoices + 1);
+    private readonly List<Voice> _voices = new(HardVoiceLimit);
     private volatile float _targetGain = 0.8f;
     private float _gain = 0.8f;
     private float _gainCoefficient;
     private float _fadeInStep;
     private float _fadeOutStep;
     private int _peakBits;
+    private long _startCounter; // orders voices by start; a counter cannot tie like a millisecond clock
 
     public SoundboardMixer(int outputRate)
     {
@@ -34,7 +42,7 @@ public sealed class SoundboardMixer
 
     public int OutputRate { get; private set; }
 
-    /// <summary>Linear soundboard volume (0..2), independent of microphone and application volume.</summary>
+    /// <summary>Linear soundboard volume (the UI uses 0..2; hard-limited to 4), independent of microphone and application volume.</summary>
     public float Volume
     {
         get => _targetGain;
@@ -65,22 +73,41 @@ public sealed class SoundboardMixer
     {
         ArgumentNullException.ThrowIfNull(soundId);
         ArgumentNullException.ThrowIfNull(clip);
-        if (clip.SampleRate != OutputRate)
-        {
-            throw new ArgumentException($"Clip is {clip.SampleRate} Hz but the output runs at {OutputRate} Hz.", nameof(clip));
-        }
-
-        if (clip.Frames == 0) return;
         lock (_sync)
         {
-            if (_voices.Count >= MaxVoices)
+            // Checked under the lock: the output rate can change (device switch) while a clip is being prepared.
+            if (clip.SampleRate != OutputRate)
             {
-                var oldest = _voices.Where(v => !v.Stopping).OrderBy(v => v.Started).FirstOrDefault();
-                if (oldest is not null) oldest.Stopping = true;
+                throw new ArgumentException($"Clip is {clip.SampleRate} Hz but the output runs at {OutputRate} Hz.", nameof(clip));
             }
 
-            _voices.Add(new Voice(soundId, clip, Environment.TickCount64));
+            if (clip.Frames == 0) return;
+            if (_voices.Count >= MaxVoices) FadeOutOldestVoice();
+            if (_voices.Count >= HardVoiceLimit) RemoveOldestVoice();
+            _voices.Add(new Voice(soundId, clip, ++_startCounter));
         }
+    }
+
+    private void RemoveOldestVoice()
+    {
+        int oldest = 0;
+        for (int i = 1; i < _voices.Count; i++)
+        {
+            if (_voices[i].Started < _voices[oldest].Started) oldest = i;
+        }
+
+        _voices.RemoveAt(oldest);
+    }
+
+    private void FadeOutOldestVoice()
+    {
+        Voice? oldest = null;
+        foreach (var v in _voices)
+        {
+            if (!v.Stopping && (oldest is null || v.Started < oldest.Started)) oldest = v;
+        }
+
+        if (oldest is not null) oldest.Stopping = true;
     }
 
     /// <summary>Fades out every voice of the given sound.</summary>

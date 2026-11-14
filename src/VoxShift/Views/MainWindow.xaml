@@ -222,9 +222,10 @@
                                     </TextBlock>
                                 </StackPanel>
                             </Border>
+                            <!-- The virtual cable VRChat records from. VoxShift cannot see VRChat itself, so the chip is not called "VRChat". -->
                             <Border Style="{StaticResource StatusChip}" ToolTip="{Binding Status.OutputMessage}">
                                 <StackPanel>
-                                    <TextBlock Text="VRCHAT" Style="{StaticResource ChipLabel}" />
+                                    <TextBlock Text="CABLE" Style="{StaticResource ChipLabel}" />
                                     <TextBlock Text="{Binding OutputStateText}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">
@@ -612,7 +613,7 @@
                                    Text="{Binding HotkeyError}" Visibility="{Binding HotkeyError, Converter={StaticResource NotEmptyVis}}" />
                         <Border Style="{StaticResource Inset}" CornerRadius="12" Padding="12,10" Margin="0,12,0,0">
                             <TextBlock Style="{StaticResource Caption}" FontSize="11.5"
-                                       Text="While this window is focused: Ctrl+1 microphone · Ctrl+2 application · Ctrl+T talk over music · Ctrl+B soundboard · F5 refresh apps." />
+                                       Text="While this window or the soundboard is focused: Ctrl+1 microphone · Ctrl+2 application · Ctrl+T talk over music · Ctrl+B soundboard · F5 refresh apps." />
                         </Border>
                         <WrapPanel Margin="0,12,0,-6">
                             <Button Content="Open log folder" Style="{StaticResource LinkButton}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,16,6" />

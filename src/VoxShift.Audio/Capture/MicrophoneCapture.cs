@@ -49,25 +49,21 @@ public sealed class MicrophoneCapture : ICaptureSource
         try
         {
             var capture = new WasapiCapture(_device, useEventSync: true, audioBufferMillisecondsLength: 30);
+            _capture = capture; // owned from here on, so every failure below releases it in CleanupCapture
             _format = WaveFormatMapper.ToStreamFormat(capture.WaveFormat);
             Format = _format;
             capture.DataAvailable += OnDataAvailable;
             capture.RecordingStopped += OnRecordingStopped;
-            _capture = capture;
             _stopRequested = false;
             capture.StartRecording();
             IsRunning = true;
             _log.Info($"Microphone capture started: {DeviceName} ({_format}).");
         }
-        catch (Exception ex) when (ex is not AudioCaptureException)
+        catch (Exception ex)
         {
             CleanupCapture();
+            if (ex is AudioCaptureException) throw;
             throw new AudioCaptureException($"Could not open microphone \"{DeviceName}\": {Describe(ex)}", ex.HResult, ex);
-        }
-        catch
-        {
-            CleanupCapture();
-            throw;
         }
     }
 
