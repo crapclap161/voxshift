@@ -19,6 +19,14 @@
         AllowDrop="True"
         DragEnter="OnDragEnter" DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop"
         Icon="pack://application:,,,/Assets/app.ico">
+    <!-- Same shortcuts as the main window, so they keep working after a click on the soundboard. -->
+    <Window.InputBindings>
+        <KeyBinding Modifiers="Ctrl" Key="D1" Command="{Binding SelectMicrophoneModeCommand}" />
+        <KeyBinding Modifiers="Ctrl" Key="D2" Command="{Binding SelectApplicationModeCommand}" />
+        <KeyBinding Modifiers="Ctrl" Key="T" Command="{Binding ToggleTalkOverMusicCommand}" />
+        <KeyBinding Modifiers="Ctrl" Key="B" Command="{Binding ToggleSoundboardDockCommand}" />
+        <KeyBinding Key="F5" Command="{Binding RefreshApplicationsCommand}" />
+    </Window.InputBindings>
     <Window.Resources>
         <c:BoolToVisibilityConverter x:Key="BoolVis" />
         <c:NotEmptyToVisibilityConverter x:Key="NotEmptyVis" />
