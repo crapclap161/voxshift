@@ -52,6 +52,8 @@ jobs:
 
       - name: Commit screenshots
         shell: pwsh
+        env:
+          BRANCH: ${{ github.ref_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -59,4 +61,4 @@ jobs:
           git diff --cached --quiet
           if ($LASTEXITCODE -eq 0) { Write-Host "No changes"; exit 0 }
           git commit -m "docs: update README screenshots"
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin "HEAD:refs/heads/$env:BRANCH"
