@@ -18,7 +18,7 @@ Azure account and no external identity verification.
 
    Keep a copy of the passphrase in a password manager. **It is the signing key**: lose it and future releases get a new
    identity; leak it and anybody can sign as VoxShift.
-2. **Release:** run *Actions → Release → Run workflow* (tag `v0.0.9`) or push the tag. The first step validates the secret, so a
+2. **Release:** run *Actions → Release → Run workflow* on `main` (tag e.g. `v0.1.0`) or push the tag. The first step validates the secret, so a
    missing secret fails within seconds with instructions, before anything is built or published.
 3. **Note the key identity** printed by the run (*Signing key SHA-256*). It is also written into the release notes, and
    it is what users compare. It stays the same for every release signed with the same passphrase.
@@ -59,7 +59,8 @@ passphrase the strength of the signing identity:
 
 1. **Validate signing key.** `scripts/sign-executable.ps1 -ValidateOnly` checks the secret exists and builds the identity
    in memory (key ID, Code Signing key usage, validity). Missing or invalid secrets stop the release.
-2. Validate the tag against `Directory.Build.props`, `CHANGELOG.md`, release notes and README screenshots; restore,
+2. Check that the commit is part of `main` and that the tag has the form `vX.Y.Z`; validate the tag against
+   `Directory.Build.props`, `CHANGELOG.md`, release notes and README screenshots; restore,
    format check, build, unit tests; `dotnet publish` (self-contained single file).
 3. **Sign** `publish/VoxShift.exe` (SHA-256) and add an **RFC 3161 timestamp** (DigiCert, with Sectigo and GlobalSign as
    fallbacks; no timestamp means no release).
@@ -103,12 +104,12 @@ So with this key:
 
 ### How to verify a downloaded file
 
-1. **Checksum:** `Get-FileHash .\VoxShift-v0.0.9-win-x64-portable.exe -Algorithm SHA256` must equal the line in
+1. **Checksum:** `Get-FileHash .\VoxShift-v0.1.0-win-x64-portable.exe -Algorithm SHA256` must equal the line in
    `SHA256SUMS.txt`.
 2. **Signature and key ID:**
 
    ```powershell
-   $s = Get-AuthenticodeSignature .\VoxShift-v0.0.9-win-x64-portable.exe
+   $s = Get-AuthenticodeSignature .\VoxShift-v0.1.0-win-x64-portable.exe
    $s.Status   # NotTrusted / UnknownError for a self-signed key is expected; HashMismatch or NotSigned is NOT ok
    $s.SignerCertificate.Subject
    # key ID: must equal the "Signing key SHA-256" in the release notes
@@ -168,4 +169,4 @@ step and are intentionally not used.
 | Signing, verification and checksum pipeline | Implemented in `release.yml`; tooling tested by CI with throwaway keys |
 | `VOXSHIFT_SIGNING_KEY` repository secret | Created by the owner |
 | Key type | Self-signed, derived from the passphrase (not publicly trusted) |
-| Signed releases published | v0.0.8 and v0.0.9 (key ID `35a1adba1e8754d9f490e38b22060acc04041e6794c5f51f085b4d867d07356e`). v0.0.7 and older are unsigned |
+| Signed releases published | v0.0.8 and newer (key ID `35a1adba1e8754d9f490e38b22060acc04041e6794c5f51f085b4d867d07356e`; the release workflow cannot publish an unsigned build). v0.0.7 and older are unsigned |

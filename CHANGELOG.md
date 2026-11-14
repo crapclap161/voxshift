@@ -6,6 +6,58 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-14
+
+**Reliability release.** The result of a full review of the code base, the audio pipeline, the release tooling and the
+documentation. No setting was removed or changed in meaning, and existing settings and soundboards load unchanged.
+
+### Added
+- The keyboard shortcuts of the main window (`Ctrl+1`, `Ctrl+2`, `Ctrl+T`, `Ctrl+B`, `F5`) also work while the
+  soundboard dock has the focus.
+- An import of more than 500 files now says that only the first 500 were processed instead of dropping the rest
+  silently.
+- `docs/development.md`: architecture of the audio pipeline, threading rules, test strategy, a manual hardware test
+  list, CI and the release process.
+- The release workflow refuses to release a commit that is not part of `main`, and accepts only tags of the form
+  `vX.Y.Z`.
+
+### Changed
+- The status tile for the virtual cable is labelled **CABLE** instead of *VRCHAT*. VoxShift can see whether it is
+  sending into the cable, not whether VRChat is running, and the label now says so.
+- **README rewritten**: table of contents, requirements, a behaviour table for the modes, complete shortcut and
+  preference tables, known limitations, and a corrected description of the global hotkey (it is off until enabled).
+  Developer details moved to `docs/development.md`.
+- Release pipeline hardening: the tag is passed to scripts through environment variables instead of being expanded
+  into script text, and the release action (the only third-party action that receives the write token) is pinned to
+  a commit.
+- Decoded sounds are cached by a dedicated, unit-tested `ClipCache`; the memory budget (256 MB) now also counts the
+  sound that was just loaded.
+- Microsoft.NET.Test.Sdk 18.12.0. The test suite grew from 187 to 206 tests, including concurrency and device-outage
+  scenarios for the audio router.
+
+### Fixed
+- **A sound that failed to load stayed broken for one more click.** The failure was cached and only discarded on the
+  following attempt. A failed load is no longer cached, so the next click decodes again.
+- **Double-clicking a sound that was still loading started it twice.** The second click is now ignored until the
+  sound is ready.
+- **Soundboard voices could pile up without limit** when sounds were started faster than audio was rendered, or
+  while the output device was unavailable. The list is now bounded.
+- **Very large WAV files** were expanded to floating point in full before being cut to five minutes, which could
+  exhaust memory. The limit is now applied while decoding.
+- **Sounds playing only in the headphones** (virtual cable not running) were not shown as playing and could not be
+  stopped with a second click.
+- **An empty WAV file** was accepted and silently played nothing; it is now reported as containing no audio.
+- **The headphone monitor could keep playing into the device that had become the VRChat output**, which would send
+  every sound twice. The monitor is now re-checked against the current output.
+- **Application capture could restart every second** when Windows did not allow VoxShift to query the captured
+  process (for example a program running as administrator). The process list now decides whether it is gone.
+- **Dialogs opened from VR Controller Mode had no owner window** and could appear behind it; a confirmation without
+  any visible window could fail. Dialogs now belong to the window in use.
+- Device and application lists could wait forever when requested during shutdown, and failed with an internal error
+  when Windows audio was unavailable; both now end with a clear message.
+- A microphone whose format is not supported no longer leaks its capture client on every retry.
+- An error on the audio render thread is written to the log once instead of being swallowed.
+
 ## [0.0.9] - 2026-11-14
 
 **Application list auto-refresh and a browser capture fix.** No change to audio routing, the soundboard or the
@@ -283,7 +335,10 @@ First public release of VoxShift (previously developed as “VRChat Audio Switch
 - New CI (Linux validation plus a Windows build and smoke test) and a tag-driven release workflow that publishes a
   portable single-file `VoxShift-vX.Y.Z-win-x64-portable.exe`, a ZIP with documentation, and `SHA256SUMS.txt`.
 
-[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.0.7...HEAD
+[Unreleased]: https://github.com/crapclap161/voxshift/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/crapclap161/voxshift/compare/v0.0.9...v0.1.0
+[0.0.9]: https://github.com/crapclap161/voxshift/compare/v0.0.8...v0.0.9
+[0.0.8]: https://github.com/crapclap161/voxshift/compare/v0.0.7...v0.0.8
 [0.0.7]: https://github.com/crapclap161/voxshift/compare/v0.0.6...v0.0.7
 [0.0.6]: https://github.com/crapclap161/voxshift/compare/v0.0.5...v0.0.6
 [0.0.5]: https://github.com/crapclap161/voxshift/compare/v0.0.4...v0.0.5

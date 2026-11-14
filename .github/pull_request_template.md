@@ -6,7 +6,7 @@
 
 - [ ] `dotnet format VoxShift.sln --verify-no-changes`
 - [ ] `dotnet build VoxShift.sln -c Release -p:TreatWarningsAsErrors=true`
-- [ ] `dotnet test tests/VoxShift.Core.Tests`
+- [ ] `dotnet test tests/VoxShift.Core.Tests -c Release`
 - [ ] Manually on Windows with a real microphone and VB-CABLE (describe below)
 
 ## Checklist
