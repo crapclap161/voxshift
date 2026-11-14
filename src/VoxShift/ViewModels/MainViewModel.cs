@@ -31,9 +31,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _meterTimer;
     private readonly DispatcherTimer _saveTimer;
+    private readonly DispatcherTimer _appRefreshTimer;
     private bool _suppressSelection;
     private bool _refreshingApps;
+    private bool _listingApplications;
     private bool _appsLoadedOnce;
+    private bool _autoRefreshApplications;
+    private bool _isApplicationListOpen;
 
     private DeviceItem? _selectedMicrophone;
     private DeviceItem? _selectedOutput;
@@ -82,6 +86,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _minimizeToTray = settings.MinimizeToTray;
         _closeAction = settings.CloseButtonAction;
         _hotkeyEnabled = settings.HotkeyEnabled;
+        _autoRefreshApplications = settings.AutoRefreshApplications;
         _hotkeyText = settings.ToggleHotkey;
         _startMinimized = settings.StartMinimized;
         _talkOverMusic = settings.TalkOverMusicEnabled;
@@ -121,6 +126,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _store.Save(_settings);
         };
 
+        // Re-scans the running applications in the background so a program started later (or one that begins playing)
+        // shows up without pressing refresh. Never while the list is open and without any loading flicker.
+        _appRefreshTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher) { Interval = ApplicationRefreshInterval };
+        _appRefreshTimer.Tick += async (_, _) =>
+        {
+            if (!_appsLoadedOnce || _isApplicationListOpen) return;
+            await RefreshApplicationsCoreAsync(silent: true);
+        };
+        if (_autoRefreshApplications) _appRefreshTimer.Start();
+
         Soundboard = new SoundboardViewModel(settings, engine.Soundboard, dialogs, ScheduleSave, log, engine.SetMonitorEnabled, engine.SetMonitorVolume);
         RefreshEffectiveState();
 
@@ -136,6 +151,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<DeviceItem> Microphones { get; } = new();
 
     public ObservableCollection<DeviceItem> OutputDevices { get; } = new();
+
+    /// <summary>How often the application list refreshes itself when "Auto-refresh" is on.</summary>
+    public static readonly TimeSpan ApplicationRefreshInterval = TimeSpan.FromSeconds(10);
 
     public ObservableCollection<AppItem> Applications { get; } = new();
 
@@ -691,6 +709,26 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Re-scan the running applications every 10 seconds.</summary>
+    public bool AutoRefreshApplications
+    {
+        get => _autoRefreshApplications;
+        set
+        {
+            if (!Set(ref _autoRefreshApplications, value)) return;
+            _settings.AutoRefreshApplications = value;
+            if (value) _appRefreshTimer.Start(); else _appRefreshTimer.Stop();
+            ScheduleSave();
+        }
+    }
+
+    /// <summary>True while the application dropdown is open (the automatic refresh waits so the list doesn't change under the cursor).</summary>
+    public bool IsApplicationListOpen
+    {
+        get => _isApplicationListOpen;
+        set => Set(ref _isApplicationListOpen, value);
+    }
+
     public bool MinimizeToTray
     {
         get => _minimizeToTray;
@@ -859,10 +897,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public async Task RefreshApplicationsAsync()
+    public Task RefreshApplicationsAsync() => RefreshApplicationsCoreAsync(silent: false);
+
+    /// <param name="silent">Automatic refresh: no loading state, and the list is only touched when something changed.</param>
+    private async Task RefreshApplicationsCoreAsync(bool silent)
     {
-        if (_refreshingApps) return;
-        IsLoadingApplications = true;
+        if (_listingApplications) return;
+        _listingApplications = true;
+        if (!silent) IsLoadingApplications = true;
         try
         {
             IReadOnlyList<AudioApplicationInfo> apps;
@@ -873,37 +915,42 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             catch (Exception ex)
             {
                 _log.Error("Listing applications failed.", ex);
-                Notice = "Could not list running applications: " + ex.Message;
+                if (!silent) Notice = "Could not list running applications: " + ex.Message;
                 return;
             }
+
+            var items = new List<AppItem> { new(NoAppExe, "None", null, "Do not capture any application", false, true) };
+            foreach (var a in apps)
+            {
+                string detail = a.IsPlaying ? "Playing audio" : a.HasAudioSession ? "Has audio" : "No audio yet";
+                if (!string.IsNullOrWhiteSpace(a.WindowTitle) && !string.Equals(a.WindowTitle, a.DisplayName, StringComparison.OrdinalIgnoreCase))
+                {
+                    detail += " · " + Truncate(a.WindowTitle!, 48);
+                }
+
+                if (a.ProcessCount > 1) detail += $" · {a.ProcessCount} processes";
+                items.Add(new AppItem(a.ExeName, a.DisplayName, a.RootProcessId, detail, a.IsPlaying, true));
+            }
+
+            string exe = _settings.ApplicationExeName;
+            var previous = _selectedApplication; // read before the list is rebuilt (rebuilding clears the selection)
+            AppItem? selected = items.FirstOrDefault(a => a.ExeName == exe && a.ProcessId == previous?.ProcessId && exe.Length > 0)
+                                ?? items.FirstOrDefault(a => a.ExeName == exe);
+            if (selected is null && exe.Length > 0)
+            {
+                selected = new AppItem(exe, Fallback(_settings.ApplicationDisplayName, exe), null, "Not running – will be captured when it starts", false, false);
+                items.Add(selected);
+            }
+
+            selected ??= items[0];
+            if (silent && items.SequenceEqual(Applications) && Equals(selected, _selectedApplication)) return;
 
             _suppressSelection = true;
             try
             {
                 Applications.Clear();
-                Applications.Add(new AppItem(NoAppExe, "None", null, "Do not capture any application", false, true));
-                foreach (var a in apps)
-                {
-                    string detail = a.IsPlaying ? "Playing audio" : a.HasAudioSession ? "Has audio" : "No audio yet";
-                    if (!string.IsNullOrWhiteSpace(a.WindowTitle) && !string.Equals(a.WindowTitle, a.DisplayName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        detail += " · " + Truncate(a.WindowTitle!, 48);
-                    }
-
-                    if (a.ProcessCount > 1) detail += $" · {a.ProcessCount} processes";
-                    Applications.Add(new AppItem(a.ExeName, a.DisplayName, a.RootProcessId, detail, a.IsPlaying, true));
-                }
-
-                string exe = _settings.ApplicationExeName;
-                AppItem? selected = Applications.FirstOrDefault(a => a.ExeName == exe && a.ProcessId == _selectedApplication?.ProcessId && exe.Length > 0)
-                                    ?? Applications.FirstOrDefault(a => a.ExeName == exe);
-                if (selected is null && exe.Length > 0)
-                {
-                    selected = new AppItem(exe, Fallback(_settings.ApplicationDisplayName, exe), null, "Not running – will be captured when it starts", false, false);
-                    Applications.Add(selected);
-                }
-
-                SelectedApplication = selected ?? Applications[0];
+                foreach (var item in items) Applications.Add(item);
+                SelectedApplication = selected;
             }
             finally
             {
@@ -913,7 +960,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         finally
         {
             _appsLoadedOnce = true;
-            IsLoadingApplications = false;
+            _listingApplications = false;
+            if (!silent) IsLoadingApplications = false;
+            else OnPropertyChanged(nameof(HasNoApplications));
         }
     }
 
@@ -939,6 +988,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _meterTimer.Stop();
+        _appRefreshTimer.Stop();
         SaveNow();
     }
 }

@@ -6,6 +6,7 @@ using VoxShift.Audio.Capture;
 using VoxShift.Audio.Devices;
 using VoxShift.Audio.Output;
 using VoxShift.Audio.Soundboard;
+using VoxShift.Core.Apps;
 using VoxShift.Core.Audio;
 using VoxShift.Core.Devices;
 using VoxShift.Core.Logging;
@@ -30,6 +31,12 @@ public sealed class AudioEngine : IDisposable
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(1000);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(3);
 
+    /// <summary>Samples below about -66 dBFS count as silence when judging whether the app capture delivers audio.</summary>
+    private const float SignalThreshold = 0.0005f;
+
+    /// <summary>How often the (comparatively expensive) process/audio-session check may run while the capture is silent.</summary>
+    private static readonly TimeSpan AppHealthCheckInterval = TimeSpan.FromSeconds(3);
+
     private readonly ILog _log;
     private readonly BlockingCollection<Action> _queue = new();
     private readonly Thread _thread;
@@ -50,6 +57,10 @@ public sealed class AudioEngine : IDisposable
     private DateTime _outputRetryAt = DateTime.MinValue;
     private DateTime _micRetryAt = DateTime.MinValue;
     private DateTime _appRetryAt = DateTime.MinValue;
+    private DateTime _nextAppHealthCheck = DateTime.MinValue;
+    private IReadOnlySet<int> _appTreeAtStart = new HashSet<int>();
+    private long _appLastSignalTicks = DateTime.UtcNow.Ticks;
+    private readonly SilentCaptureWatchdog _appWatchdog = new(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(10));
     private DateTime _nextTick = DateTime.MinValue;
     private bool _devicesDirty;
 
@@ -494,11 +505,18 @@ public sealed class AudioEngine : IDisposable
             try { exited = _appProcess is null || _appProcess.HasExited; }
             catch (Exception) { exited = true; }
 
-            if (_app.IsRunning && !exited) return;
-
-            _log.Info(exited ? $"\"{_desiredAppName}\" exited; waiting for it to restart." : "Application capture stopped; restarting.");
-            StopApplication();
-            _desiredAppPid = null; // the old instance is gone; re-resolve by name
+            if (_app.IsRunning && !exited)
+            {
+                if (!ApplicationCaptureMissesAudio()) return;
+                StopApplication(); // re-attach to the same application: the new capture includes its current processes
+                _appRetryAt = DateTime.MinValue;
+            }
+            else
+            {
+                _log.Info(exited ? $"\"{_desiredAppName}\" exited; waiting for it to restart." : "Application capture stopped; restarting.");
+                StopApplication();
+                _desiredAppPid = null; // the old instance is gone; re-resolve by name
+            }
         }
 
         if (DateTime.UtcNow < _appRetryAt) return;
@@ -525,8 +543,11 @@ public sealed class AudioEngine : IDisposable
             return;
         }
 
-        var capture = new ProcessLoopbackCapture(pid.Value, includeProcessTree: true,
-            (data, frames, rate) => Router.Application.Write(data, frames, rate), _log);
+        // Remember which processes the capture covers (taken BEFORE it starts, so nothing created meanwhile is missed).
+        try { _appTreeAtStart = new ProcessTree(NativeProcess.Snapshot()).GetTree(pid.Value); }
+        catch (Exception ex) { _log.Debug($"Could not snapshot the process tree: {ex.Message}"); _appTreeAtStart = new HashSet<int> { pid.Value }; }
+        Volatile.Write(ref _appLastSignalTicks, DateTime.UtcNow.Ticks);
+        var capture = new ProcessLoopbackCapture(pid.Value, includeProcessTree: true, OnApplicationAudio, _log);
         try
         {
             capture.Stopped += (c, ex) => Post(() =>
@@ -551,6 +572,50 @@ public sealed class AudioEngine : IDisposable
             _appRetryAt = DateTime.UtcNow + RetryDelay;
             _log.Error("Starting application capture failed.", ex);
             SetAppStatus(ComponentState.Error, ex.Message, _desiredAppName, pid);
+        }
+    }
+
+    /// <summary>Capture callback: forwards the audio and remembers when real signal last arrived (no allocation).</summary>
+    private void OnApplicationAudio(ReadOnlySpan<float> data, int frames, int sampleRate)
+    {
+        foreach (float sample in data)
+        {
+            if (sample > SignalThreshold || sample < -SignalThreshold)
+            {
+                Volatile.Write(ref _appLastSignalTicks, DateTime.UtcNow.Ticks);
+                break;
+            }
+        }
+
+        Router.Application.Write(data, frames, sampleRate);
+    }
+
+    /// <summary>
+    /// True when the running capture delivers silence while a process of the application that it does not include is
+    /// playing audio. Browsers start their audio helper process on demand (and stop it when idle), so a capture that was
+    /// started before it existed can miss it; re-attaching includes it. Silence alone never triggers this.
+    /// </summary>
+    private bool ApplicationCaptureMissesAudio()
+    {
+        var now = DateTime.UtcNow;
+        if (now < _nextAppHealthCheck || _app is null) return false;
+        var lastSignal = new DateTime(Volatile.Read(ref _appLastSignalTicks), DateTimeKind.Utc);
+        if (!_appWatchdog.IsSilent(now, lastSignal)) return false;
+        _nextAppHealthCheck = now + AppHealthCheckInterval;
+
+        try
+        {
+            var tree = new ProcessTree(NativeProcess.Snapshot());
+            var active = AudioApplicationEnumerator.GetActiveAudioProcessIds(_devices!.Enumerator, _log);
+            var unseen = tree.FindUnseenAudioProcesses(_app.ProcessId, active, _appTreeAtStart);
+            if (!_appWatchdog.ShouldRestart(now, lastSignal, unseen.Count > 0)) return false;
+            _log.Info($"\"{_desiredAppName}\" plays audio from new process(es) {string.Join(", ", unseen)} that the running capture did not include; re-attaching.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _log.Debug($"Application capture health check failed: {ex.Message}");
+            return false;
         }
     }
 

@@ -129,7 +129,7 @@ In the **Sources & devices** section of the main window (open by default):
 | Setting | What to choose |
 |---|---|
 | **Microphone** | Your real microphone. VoxShift shows *Capturing “…”* when it works. |
-| **Application to capture** | The program whose sound you want to share, for example **Spotify**. Start the program first, then press the **⟳** button (or **F5**) to refresh the list. Programs that are playing sound are marked with ▷. |
+| **Application to capture** | The program whose sound you want to share, for example **Spotify**. The list refreshes itself every 10 seconds (switch this off in *Preferences → Auto-refresh*), or press **⟳** (or **F5**) to refresh it right away. Programs that are playing sound are marked with ▷. |
 | **VRChat output (virtual cable)** | Leave it on **Auto-detect**. It should show *Sending to “CABLE Input (VB-Audio Virtual Cable)”*. |
 
 <p align="center"><img src="docs/screenshots/application-picker-framed.png" width="340" alt="The application picker lists running programs, with the ones that are playing sound marked"></p>
@@ -255,7 +255,7 @@ one simple window that has big buttons.
 - When you click the **X** button, VoxShift asks whether to **minimize to the tray** (keeps running and routing audio)
   or **quit**. Tick *Remember my choice* to stop being asked, or change it later under *Preferences → When clicking the X button*.
 - To quit completely: **X → Quit VoxShift**, or tray icon → **Exit VoxShift**.
-- Other options in **Preferences** (collapsed by default): always on top, start in the tray and the global hotkey.
+- Other options in **Preferences** (collapsed by default): the automatic refresh of the application list, always on top, start in the tray and the global hotkey.
 
 <p align="center"><img src="docs/screenshots/close-dialog.png" width="380" alt="The close dialog: Minimize to Tray, Quit VoxShift, Cancel and Remember my choice"></p>
 
@@ -281,6 +281,7 @@ one simple window that has big buttons.
 | **I can't hear anything on my PC** | Your Windows default output was switched to *CABLE Input*. In *Settings → System → Sound* set your headphones or speakers as the output. |
 | **Others hear the music twice or an echo** | The music app is set to play into *CABLE Input* directly. In *Settings → System → Sound → Volume mixer* set the app back to your headphones, and make sure “Listen to this device” is off for *CABLE Output*. |
 | **The application isn't in the list / “is not running”** | Start the program, play something, then press **⟳** or **F5**. |
+| **A browser (Brave, Chrome, Edge) is silent or only works while its tab is in front** | VoxShift captures the whole browser, not one tab, so playing tabs in the background are included. Browsers start their audio helper process only when sound begins, and VoxShift now re-attaches by itself within a few seconds if that happens. If it stays silent, reselect the browser in the list, make sure the tab isn't muted, and send the log (*Preferences → Open log folder*): it says when VoxShift re-attached. |
 | **The app's meter stays empty** | The app isn't playing sound, plays copy-protected (DRM) content, or the sound comes from another process. |
 | **“Access denied” when sharing an app** | That app runs as administrator. Run VoxShift and the app with the same rights. |
 | **Music sounds choppy or robotic in VRChat** | Turn **Noise Suppression off** in VRChat. If **LIMIT** is lit, lower a volume. |

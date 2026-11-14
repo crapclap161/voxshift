@@ -94,6 +94,10 @@ public static class AudioApplicationEnumerator
         return tree.FindRootByExeName(exeName, preferred);
     }
 
+    /// <summary>Process ids that currently have an active (playing) audio session on any active render device.</summary>
+    public static IReadOnlyList<int> GetActiveAudioProcessIds(MMDeviceEnumerator enumerator, ILog log) =>
+        GetSessionProcesses(enumerator, log).Where(s => s.Value).Select(s => s.Key).ToList();
+
     /// <summary>pid → whether the session is currently active (playing) on any active render device.</summary>
     private static Dictionary<int, bool> GetSessionProcesses(MMDeviceEnumerator enumerator, ILog log)
     {

@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- **Auto-refresh of the application list** every 10 seconds (*Preferences → Application list*, on by default). It runs
+  in the background without a loading flicker, only updates the list when something changed, and waits while the
+  dropdown is open.
+
+### Fixed
+- **Browser audio missing in application mode.** Browsers (Brave, Chrome, Edge, …) start their audio helper process
+  only when sound begins and stop it when idle. A capture that was started before that process existed could miss it, so
+  nothing was heard. The engine now re-attaches the capture (at most every 10 seconds) when it delivers silence while a
+  new process of the same application is playing audio, and logs when it does. Silence alone never restarts the capture.
+
 ## [0.0.8] - 2026-11-13
 
 **Beginner-friendly documentation and signed Windows releases.** No change to the application, its audio routing or

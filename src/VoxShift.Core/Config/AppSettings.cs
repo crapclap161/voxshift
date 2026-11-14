@@ -53,6 +53,9 @@ public sealed class AppSettings
     /// <summary>The one-time "VoxShift is still running in the system tray" notice has been shown.</summary>
     public bool TrayNoticeShown { get; set; }
 
+    /// <summary>Re-scan the running applications every 10 seconds (v0.0.9). On by default, also for existing users.</summary>
+    public bool AutoRefreshApplications { get; set; } = true;
+
     public bool HotkeyEnabled { get; set; }
 
     /// <summary>Global hotkey that toggles between the two modes, e.g. "Ctrl+Alt+M".</summary>

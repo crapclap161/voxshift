@@ -80,6 +80,17 @@ public sealed class ProcessTree
     }
 
     /// <summary>
+    /// Returns the processes of the application's tree that are rendering audio now but did not exist when the
+    /// capture was started (<paramref name="knownPids"/>). Browsers start their audio helper process on demand and
+    /// shut it down when idle, so audio can come from a process that a running capture does not include.
+    /// </summary>
+    public IReadOnlyList<int> FindUnseenAudioProcesses(int rootPid, IEnumerable<int> activeAudioPids, IReadOnlySet<int> knownPids)
+    {
+        var tree = GetTree(rootPid);
+        return activeAudioPids.Where(p => tree.Contains(p) && !knownPids.Contains(p)).Distinct().ToList();
+    }
+
+    /// <summary>
     /// Groups candidate process ids by application root and returns one root per group.
     /// </summary>
     public IReadOnlyDictionary<int, IReadOnlyList<int>> GroupByApplication(IEnumerable<int> candidatePids)

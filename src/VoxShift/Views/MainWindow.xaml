@@ -488,6 +488,7 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ComboBox Style="{StaticResource BigCombo}" ItemsSource="{Binding Applications}" SelectedItem="{Binding SelectedApplication}"
+                                      IsDropDownOpen="{Binding IsApplicationListOpen, Mode=TwoWay}"
                                       ItemTemplate="{StaticResource AppItemTemplate}" MaxDropDownHeight="420"
                                       AutomationProperties.Name="Application to capture" />
                             <Button Grid.Column="1" Margin="8,0,0,0" Style="{StaticResource SquareIconButton}" MinWidth="48" MinHeight="48"
@@ -576,6 +577,10 @@
                                 <TextBlock Style="{StaticResource OptionDescription}" Text="Off keeps only a slim strip next to this window." />
                             </StackPanel>
                         </ToggleButton>
+
+                        <TextBlock Text="APPLICATION LIST" Style="{StaticResource SectionLabel}" Margin="2,18,0,6" />
+                        <CheckBox Content="Auto-refresh every 10 seconds" IsChecked="{Binding AutoRefreshApplications}" MinHeight="36"
+                                  ToolTip="Keeps the list of running applications up to date, so a program you start later shows up without pressing refresh" />
 
                         <TextBlock Text="WINDOW &amp; TRAY" Style="{StaticResource SectionLabel}" Margin="2,18,0,6" />
                         <WrapPanel>
