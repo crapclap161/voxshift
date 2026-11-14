@@ -182,7 +182,7 @@ public sealed class AudioEngine : IDisposable
     /// <param name="processId">Optional root process id from the list (exact instance).</param>
     public void SelectApplication(string exeName, string displayName, int? processId) => Post(() =>
     {
-        string normalized = Core.Apps.ProcessTree.NormalizeExeName(exeName ?? string.Empty);
+        string normalized = ProcessTree.NormalizeExeName(exeName ?? string.Empty);
         if (normalized == _desiredAppExe && processId == _desiredAppPid && _app is not null) return;
         _desiredAppExe = normalized;
         _desiredAppName = string.IsNullOrWhiteSpace(displayName) ? normalized : displayName;
@@ -519,9 +519,7 @@ public sealed class AudioEngine : IDisposable
 
         if (_app is not null)
         {
-            bool exited;
-            try { exited = _appProcess is null || _appProcess.HasExited; }
-            catch (Exception) { exited = true; }
+            bool exited = HasApplicationExited(_app.ProcessId);
 
             if (_app.IsRunning && !exited)
             {
@@ -637,12 +635,30 @@ public sealed class AudioEngine : IDisposable
         }
     }
 
+    /// <summary>
+    /// Whether the captured process is gone. Windows may refuse to let VoxShift query a process (for example one that
+    /// runs elevated); that is not the same as "exited" and must not restart the capture on every supervisor tick,
+    /// so the process list decides in that case.
+    /// </summary>
+    private bool HasApplicationExited(int pid)
+    {
+        if (_appProcess is null) return true;
+        try
+        {
+            return _appProcess.HasExited;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or NotSupportedException)
+        {
+            return !NativeProcess.Snapshot().Any(p => p.ProcessId == pid && ProcessTree.NormalizeExeName(p.ExeName) == _desiredAppExe);
+        }
+    }
+
     private bool IsSameApp(int pid)
     {
         try
         {
             using var p = Process.GetProcessById(pid);
-            return !p.HasExited && Core.Apps.ProcessTree.NormalizeExeName(p.ProcessName) == _desiredAppExe;
+            return !p.HasExited && ProcessTree.NormalizeExeName(p.ProcessName) == _desiredAppExe;
         }
         catch (Exception)
         {
