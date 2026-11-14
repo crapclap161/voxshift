@@ -88,8 +88,6 @@ internal static class NativeWindowMethods
         return GetWindowRect(hwnd, out var rect) ? rect.ToPixelRect() : default;
     }
 
-    public static PixelRect GetWindowBounds(IntPtr hwnd) => GetWindowRect(hwnd, out var rect) ? rect.ToPixelRect() : default;
-
     /// <summary>Work area (screen without taskbar) of the monitor nearest to the window.</summary>
     public static PixelRect GetWorkArea(IntPtr hwnd)
     {

@@ -20,7 +20,7 @@ public sealed record SoundboardItem(string Id, string Name)
 }
 
 /// <summary>
-/// Soundboard section of the main window: collections, sound buttons, import (file picker and drag & drop),
+/// Soundboard section of the main window: collections, sound buttons, import (file picker and drag &amp; drop),
 /// playback state, volume and the collapsed/expanded state. All edits go through <see cref="SoundboardLibrary"/>
 /// and are persisted immediately via the settings store. Files are referenced in place, never copied.
 /// </summary>
@@ -283,11 +283,11 @@ public sealed class SoundboardViewModel : ObservableObject
         set => Set(ref _outputAvailable, value);
     }
 
-    /// <summary>True if any path is a supported audio file or a folder (used while dragging).</summary>
+    /// <summary>Number of paths that are a supported audio file or a folder (used while dragging).</summary>
     public static int CountImportable(IEnumerable<string> paths) =>
         paths.Count(p => SoundboardLibrary.IsSupportedFile(p) || Directory.Exists(p));
 
-    /// <summary>Adds files (drag & drop or picker). Creates the first soundboard automatically if needed.</summary>
+    /// <summary>Adds files (drag &amp; drop or picker). Creates the first soundboard automatically if needed.</summary>
     public void ImportFiles(IEnumerable<string> paths)
     {
         var list = paths.ToList();
@@ -319,7 +319,7 @@ public sealed class SoundboardViewModel : ObservableObject
     /// <summary>Called ~30 times per second by the UI timer: playing state, progress and missing-file checks.</summary>
     public void UpdatePlayback()
     {
-        _player.Mixer.CopyProgress(_progress);
+        _player.CopyProgress(_progress);
         bool any = false;
         int count = 0;
         foreach (var sound in Sounds)
@@ -348,6 +348,8 @@ public sealed class SoundboardViewModel : ObservableObject
 
     internal async Task PlayAsync(SoundButtonViewModel sound)
     {
+        // Still decoding from an earlier click: a second click must not queue the sound a second time.
+        if (sound.IsLoading) return;
         if (sound.IsPlaying)
         {
             _player.Stop(sound.Id);

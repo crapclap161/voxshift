@@ -222,9 +222,10 @@
                                     </TextBlock>
                                 </StackPanel>
                             </Border>
+                            <!-- The virtual cable VRChat records from. VoxShift cannot see VRChat itself, so the chip is not called "VRChat". -->
                             <Border Style="{StaticResource StatusChip}" ToolTip="{Binding Status.OutputMessage}">
                                 <StackPanel>
-                                    <TextBlock Text="VRCHAT" Style="{StaticResource ChipLabel}" />
+                                    <TextBlock Text="CABLE" Style="{StaticResource ChipLabel}" />
                                     <TextBlock Text="{Binding OutputStateText}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock" BasedOn="{StaticResource ChipValue}">

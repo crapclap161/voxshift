@@ -68,6 +68,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _isApplicationLive;
     private bool _isSoundboardPlaying;
     private string _microphoneStateText = "OFF";
+    private int _soundboardStateCount = -1;
     private string _transmitDetail = string.Empty;
 
     public MainViewModel(AudioEngine engine, SettingsStore store, AppSettings settings, ILog log, Dispatcher dispatcher, IDialogService dialogs)
@@ -194,7 +195,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Raised when the view should show the setup guide window.</summary>
     public event Action? SetupGuideRequested;
 
-    /// <summary>"VoxShift 0.0.1" for the title area.</summary>
+    /// <summary>Version label for the title area, e.g. "v0.1.0".</summary>
     public string VersionText { get; } = "v" + AppInfo.Version;
 
     /// <summary>True while the running applications are being scanned (loading state).</summary>
@@ -514,7 +515,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             : !output ? "NOT SENT"
             : "OFF";
         TransmitDetail = BuildTransmitDetail();
-        OnPropertyChanged(nameof(SoundboardStateText));
+
+        // This runs on every meter tick; only tell the bindings when the text really changed.
+        if (_soundboardStateCount != Soundboard.PlayingCount)
+        {
+            _soundboardStateCount = Soundboard.PlayingCount;
+            OnPropertyChanged(nameof(SoundboardStateText));
+        }
     }
 
     // ---- meters ---------------------------------------------------------------------------------
