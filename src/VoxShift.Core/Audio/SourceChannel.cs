@@ -43,7 +43,7 @@ public sealed class SourceChannel
     /// <summary>When more than this is buffered (e.g. after a stall) the excess is dropped at once.</summary>
     public double MaxLatencyMs { get; init; } = 200;
 
-    /// <summary>Linear gain applied to this source (0..2). Changes are smoothed over ~10 ms.</summary>
+    /// <summary>Linear gain applied to this source (the UI uses 0..2; hard-limited to 4). Changes are smoothed over ~10 ms.</summary>
     public float TargetGain
     {
         get => _targetGain;

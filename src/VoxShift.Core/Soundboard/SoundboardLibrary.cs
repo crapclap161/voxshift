@@ -18,7 +18,10 @@ public sealed class ImportResult
 
     public List<string> Missing { get; } = new();
 
-    public bool HasProblems => Duplicates.Count + Unsupported.Count + Missing.Count > 0;
+    /// <summary>More than <see cref="SoundboardLibrary.MaxFilesPerImport"/> files were offered; the rest was not looked at.</summary>
+    public bool Truncated { get; set; }
+
+    public bool HasProblems => Truncated || Duplicates.Count + Unsupported.Count + Missing.Count > 0;
 
     /// <summary>Short user-facing summary, e.g. "Added 3 sounds. Skipped 1 unsupported file (notes.txt)."</summary>
     public string Summary
@@ -30,6 +33,7 @@ public sealed class ImportResult
             if (Duplicates.Count > 0) parts.Add(Describe(Duplicates, "already on this soundboard"));
             if (Unsupported.Count > 0) parts.Add(Describe(Unsupported, "not a supported audio format") + " Supported: " + SoundboardLibrary.SupportedFormatsText + ".");
             if (Missing.Count > 0) parts.Add(Describe(Missing, "not found"));
+            if (Truncated) parts.Add($"Only the first {SoundboardLibrary.MaxFilesPerImport} files were processed; add the rest in a second step.");
             return parts.Count == 0 ? "No audio files found." : string.Join(" ", parts);
         }
     }
@@ -172,7 +176,12 @@ public sealed class SoundboardLibrary
 
         foreach (string raw in ExpandFolders(paths))
         {
-            if (processed++ >= MaxFilesPerImport) break;
+            if (processed++ >= MaxFilesPerImport)
+            {
+                result.Truncated = true;
+                break;
+            }
+
             string full = Normalize(raw);
             if (!IsSupportedFile(full))
             {

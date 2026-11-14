@@ -158,4 +158,22 @@ public class SoundboardLibraryTests
     [InlineData("noext", false)]
     public void RecognisesSupportedFormats(string file, bool supported) =>
         Assert.Equal(supported, SoundboardLibrary.IsSupportedFile(file));
+
+    [Fact]
+    public void ImportBeyondTheLimitIsReportedInsteadOfBeingSilentlyCut()
+    {
+        var settings = new AppSettings();
+        var names = Enumerable.Range(0, SoundboardLibrary.MaxFilesPerImport + 5).Select(i => P($"s{i:0000}.wav")).ToArray();
+        var lib = Create(settings, names);
+
+        var result = lib.Import(names);
+
+        Assert.Equal(SoundboardLibrary.MaxFilesPerImport, result.Added.Count);
+        Assert.True(result.Truncated);
+        Assert.True(result.HasProblems);
+        Assert.Contains($"first {SoundboardLibrary.MaxFilesPerImport} files", result.Summary, StringComparison.Ordinal);
+
+        var small = lib.Import([P("s0000.wav")]);
+        Assert.False(small.Truncated);
+    }
 }

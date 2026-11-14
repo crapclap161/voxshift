@@ -15,8 +15,14 @@ public static class WavDecoder
 
     /// <summary>Decodes a WAV file image. Returns null if the data is not a WAV this decoder understands.</summary>
     /// <param name="maxFrames">Truncate after this many frames (protects memory for very long files).</param>
-    public static AudioClip? TryDecode(ReadOnlySpan<byte> data, int maxFrames = int.MaxValue)
+    /// <param name="maxSeconds">
+    /// Truncate after this duration at the file's own sample rate. Unlike <paramref name="maxFrames"/> it can be
+    /// chosen before the sample rate is known, so a huge file is never expanded to float just to be cut afterwards.
+    /// </param>
+    public static AudioClip? TryDecode(ReadOnlySpan<byte> data, int maxFrames = int.MaxValue, double maxSeconds = double.PositiveInfinity)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxFrames);
+        if (double.IsNaN(maxSeconds) || maxSeconds < 0) throw new ArgumentOutOfRangeException(nameof(maxSeconds));
         if (data.Length < 12 || !Is(data, 0, "RIFF") || !Is(data, 8, "WAVE")) return null;
 
         int offset = 12;
@@ -47,7 +53,7 @@ public static class WavDecoder
             }
             else if (Is(data, offset, "data") && haveFormat)
             {
-                return Decode(data[bodyStart..(int)bodyEnd], format, channels, sampleRate, bits, maxFrames);
+                return Decode(data[bodyStart..(int)bodyEnd], format, channels, sampleRate, bits, maxFrames, maxSeconds);
             }
 
             // Chunks are word aligned.
@@ -59,7 +65,7 @@ public static class WavDecoder
         return null;
     }
 
-    private static AudioClip? Decode(ReadOnlySpan<byte> pcm, ushort format, ushort channels, int sampleRate, ushort bits, int maxFrames)
+    private static AudioClip? Decode(ReadOnlySpan<byte> pcm, ushort format, ushort channels, int sampleRate, ushort bits, int maxFrames, double maxSeconds)
     {
         if (channels == 0 || sampleRate <= 0 || sampleRate > 768_000) return null;
         bool isFloat = format == FormatFloat;
@@ -69,7 +75,11 @@ public static class WavDecoder
 
         int bytesPerSample = bits / 8;
         int blockAlign = bytesPerSample * channels;
-        int frames = Math.Min(pcm.Length / blockAlign, maxFrames);
+
+        // The stereo float copy must fit into one array, whatever the header claims.
+        long limit = Math.Min(maxFrames, Array.MaxLength / 2);
+        if (maxSeconds < limit / (double)sampleRate) limit = (long)(maxSeconds * sampleRate);
+        int frames = (int)Math.Min(pcm.Length / blockAlign, limit);
         var stereo = new float[frames * 2];
 
         for (int f = 0; f < frames; f++)

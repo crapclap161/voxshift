@@ -80,6 +80,37 @@ public class WavDecoderTests
         Assert.Equal(100, clip!.Frames);
     }
 
+    [Fact]
+    public void TruncatesByDurationAtTheFilesOwnSampleRate()
+    {
+        // 1 s of 8 kHz mono, limited to a quarter second: the cut happens while decoding, not afterwards.
+        var clip = WavDecoder.TryDecode(Wav(1, 1, 8000, 16, new byte[16000]), maxSeconds: 0.25);
+        Assert.Equal(2000, clip!.Frames);
+        Assert.Equal(8000, clip.SampleRate);
+
+        // Both limits apply; the smaller one wins.
+        Assert.Equal(100, WavDecoder.TryDecode(Wav(1, 1, 8000, 16, new byte[16000]), maxFrames: 100, maxSeconds: 0.25)!.Frames);
+        Assert.Equal(8000, WavDecoder.TryDecode(Wav(1, 1, 8000, 16, new byte[16000]), maxSeconds: 60)!.Frames);
+    }
+
+    [Fact]
+    public void RejectsInvalidLimits()
+    {
+        byte[] wav = Wav(1, 1, 8000, 16, new byte[16]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => WavDecoder.TryDecode(wav, maxFrames: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => WavDecoder.TryDecode(wav, maxSeconds: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => WavDecoder.TryDecode(wav, maxSeconds: double.NaN));
+    }
+
+    [Fact]
+    public void DataChunkThatClaimsMoreBytesThanTheFileHasIsReadToTheEndOfTheFile()
+    {
+        byte[] wav = Wav(1, 1, 8000, 16, new byte[400]);
+        int sizeField = wav.Length - 400 - 4;
+        BitConverter.GetBytes(uint.MaxValue).CopyTo(wav, sizeField); // streamed / truncated recordings do this
+        Assert.Equal(200, WavDecoder.TryDecode(wav)!.Frames);
+    }
+
     [Theory]
     [InlineData(new byte[] { 1, 2, 3 })]
     [InlineData(new byte[] { (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0, 0, 0, 0, (byte)'W', (byte)'A', (byte)'V', (byte)'E' })]
