@@ -21,58 +21,85 @@ public class ReliabilityTests
     }
 
     [Fact]
-    public async Task ConcurrentCaptureRenderAndControlThreadsNeverCorruptTheMix()
+    public void ConcurrentCaptureRenderAndControlThreadsNeverCorruptTheMix()
     {
         // Real threading model: two capture threads write, the render thread pulls, the UI thread switches modes,
-        // toggles options, moves sliders and plays / stops sounds, all at the same time.
+        // toggles options, moves sliders and plays / stops sounds, all at the same time. Dedicated threads (as in
+        // the application) so the test does not depend on how fast the thread pool grows on a small CI machine.
+        const int BlocksToRender = 300;
         var router = new AudioRouter(Rate) { TalkOverMusic = true };
         var clip = new AudioClip(TestSignals.Sine(Rate, 330, Rate / 5, 0.5f), Rate);
-        using var stop = new CancellationTokenSource();
-        var token = stop.Token;
-        long rendered = 0;
+        var failures = new System.Collections.Concurrent.ConcurrentQueue<Exception>();
+        int rendered = 0;
+        bool Running() => Volatile.Read(ref rendered) < BlocksToRender && failures.IsEmpty;
 
-        Task Writer(SourceChannel channel, int rate, double freq) => Task.Run(() =>
+        Thread Start(string name, Action body)
+        {
+            var thread = new Thread(() =>
+            {
+                try { body(); }
+                catch (Exception ex) { failures.Enqueue(ex); }
+            })
+            {
+                IsBackground = true,
+                Name = name,
+            };
+            thread.Start();
+            return thread;
+        }
+
+        void Capture(SourceChannel channel, int rate, double freq)
         {
             var block = TestSignals.Sine(rate, freq, rate / 100, 0.6f);
-            while (!token.IsCancellationRequested) channel.Write(block, rate / 100, rate);
-        });
-
-        var render = Task.Run(() =>
-        {
-            var output = new float[Block * 2];
-            while (!token.IsCancellationRequested)
+            while (Running())
             {
-                router.Render(output, Block);
-                AssertSane(output);
-                Interlocked.Increment(ref rendered);
+                channel.Write(block, rate / 100, rate);
+                Thread.Yield();
             }
-        });
+        }
 
-        var control = Task.Run(() =>
+        var threads = new[]
         {
-            for (int i = 0; !token.IsCancellationRequested; i++)
+            Start("mic capture", () => Capture(router.Microphone, 44100, 220)),
+            Start("app capture", () => Capture(router.Application, 48000, 880)),
+            Start("render", () =>
             {
-                router.RequestedSource = (i & 1) == 0 ? AudioSource.Application : AudioSource.Microphone;
-                router.TalkOverMusic = (i & 2) == 0;
-                router.AutoMuteMicrophone = (i & 4) == 0;
-                router.Microphone.TargetGain = (i % 5) * 0.5f;
-                router.Soundboard.Volume = (i % 3) * 0.75f;
-                router.Soundboard.Play("s" + (i % 7), clip);
-                if (i % 3 == 0) router.Soundboard.Stop("s" + (i % 7));
-                if (i % 11 == 0) router.Soundboard.StopAll();
-                _ = router.Soundboard.IsPlaying("s1");
-                _ = router.TakeOutputPeak();
-                _ = router.GateLevels;
-            }
-        });
+                var output = new float[Block * 2];
+                while (Running())
+                {
+                    router.Render(output, Block);
+                    AssertSane(output);
+                    Interlocked.Increment(ref rendered);
+                }
+            }),
+            Start("control", () =>
+            {
+                for (int i = 0; Running(); i++)
+                {
+                    router.RequestedSource = (i & 1) == 0 ? AudioSource.Application : AudioSource.Microphone;
+                    router.TalkOverMusic = (i & 2) == 0;
+                    router.AutoMuteMicrophone = (i & 4) == 0;
+                    router.Microphone.TargetGain = (i % 5) * 0.5f;
+                    router.Soundboard.Volume = (i % 3) * 0.75f;
+                    router.Soundboard.Play("s" + (i % 7), clip);
+                    if (i % 3 == 0) router.Soundboard.Stop("s" + (i % 7));
+                    if (i % 11 == 0) router.Soundboard.StopAll();
+                    _ = router.Soundboard.IsPlaying("s1");
+                    _ = router.TakeOutputPeak();
+                    _ = router.GateLevels;
+                    Thread.Yield();
+                }
+            }),
+        };
 
-        var tasks = new[] { Writer(router.Microphone, 44100, 220), Writer(router.Application, 48000, 880), render, control };
-        await Task.Delay(400);
-        stop.Cancel();
-        await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(20)); // rethrows any failure; a hang means a deadlock
+        foreach (var thread in threads)
+        {
+            Assert.True(thread.Join(TimeSpan.FromSeconds(60)), $"The {thread.Name} thread did not finish: deadlock?");
+        }
 
-        Assert.True(Interlocked.Read(ref rendered) > 0);
-        Assert.True(router.Soundboard.ActiveCount <= SoundboardMixer.MaxVoices + 1);
+        Assert.Empty(failures);
+        Assert.Equal(BlocksToRender, Volatile.Read(ref rendered));
+        Assert.InRange(router.Soundboard.ActiveCount, 0, SoundboardMixer.HardVoiceLimit);
     }
 
     [Fact]
@@ -183,6 +210,24 @@ public class ReliabilityTests
         var buffer = new float[Block * 2];
         for (int i = 0; i < 5; i++) mixer.MixInto(buffer, Block); // 50 ms > fade-out
         Assert.Equal(SoundboardMixer.MaxVoices, mixer.ActiveCount);
+    }
+
+    [Fact]
+    public void VoicesStayBoundedWhenNothingRenders()
+    {
+        // Regression: fading voices are only released by rendering. Without it (device gone, or clicks arriving
+        // faster than audio blocks) the voice list used to grow with every click.
+        var mixer = new SoundboardMixer(Rate);
+        var clip = new AudioClip(new float[Rate * 2], Rate);
+        for (int i = 0; i < 1000; i++) mixer.Play("s" + i, clip);
+
+        Assert.Equal(SoundboardMixer.HardVoiceLimit, mixer.ActiveCount);
+        Assert.True(mixer.IsPlaying("s999")); // the newest sounds are the ones that survive
+        Assert.False(mixer.IsPlaying("s0"));
+
+        var buffer = new float[Block * 2];
+        for (int i = 0; i < 5; i++) mixer.MixInto(buffer, Block);
+        Assert.Equal(SoundboardMixer.MaxVoices, mixer.ActiveCount); // back to the normal limit once audio runs again
     }
 
     [Fact]

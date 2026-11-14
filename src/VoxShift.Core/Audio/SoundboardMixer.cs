@@ -14,11 +14,18 @@ public sealed class SoundboardMixer
     /// <summary>Hard limit of simultaneous voices; the oldest voice is faded out when exceeded.</summary>
     public const int MaxVoices = 32;
 
+    /// <summary>
+    /// Absolute bound of the voice list. Fading voices only disappear while the mixer is rendered, so when sounds are
+    /// started faster than that (or nothing renders at all, e.g. the device just went away) the oldest voice is
+    /// dropped outright instead of letting the list grow.
+    /// </summary>
+    public const int HardVoiceLimit = MaxVoices * 2;
+
     private const double FadeInMs = 3;
     private const double FadeOutMs = 12;
 
     private readonly object _sync = new();
-    private readonly List<Voice> _voices = new(MaxVoices + 1);
+    private readonly List<Voice> _voices = new(HardVoiceLimit);
     private volatile float _targetGain = 0.8f;
     private float _gain = 0.8f;
     private float _gainCoefficient;
@@ -76,8 +83,20 @@ public sealed class SoundboardMixer
 
             if (clip.Frames == 0) return;
             if (_voices.Count >= MaxVoices) FadeOutOldestVoice();
+            if (_voices.Count >= HardVoiceLimit) RemoveOldestVoice();
             _voices.Add(new Voice(soundId, clip, ++_startCounter));
         }
+    }
+
+    private void RemoveOldestVoice()
+    {
+        int oldest = 0;
+        for (int i = 1; i < _voices.Count; i++)
+        {
+            if (_voices[i].Started < _voices[oldest].Started) oldest = i;
+        }
+
+        _voices.RemoveAt(oldest);
     }
 
     private void FadeOutOldestVoice()
