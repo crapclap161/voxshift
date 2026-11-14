@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-11-14
+
+**Application list auto-refresh and a browser capture fix.** No change to audio routing, the soundboard or the
+signing setup; existing settings load unchanged.
+
 ### Added
 - **Auto-refresh of the application list** every 10 seconds (*Preferences → Application list*, on by default). It runs
   in the background without a loading flicker, only updates the list when something changed, and waits while the

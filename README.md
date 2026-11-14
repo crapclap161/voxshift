@@ -305,7 +305,7 @@ publisher it trusts. It is **not** an error and doesn't mean the file is infecte
 VoxShift from the [official releases page](https://github.com/crapclap161/voxshift/releases).
 
 1. Click **More info**.
-2. The *Publisher* shows *Unknown publisher*. That is expected: the v0.0.8 signature uses a self-signed certificate, and
+2. The *Publisher* shows *Unknown publisher*. That is expected: the signature of v0.0.8 and newer uses a self-signed certificate, and
    older versions are unsigned.
 3. Click **Run anyway**.
 
@@ -314,7 +314,7 @@ If you extracted the ZIP, you can avoid the prompt for every file: right-click t
 
 **Code-signing status, in plain words**
 
-| Question | v0.0.8 |
+| Question | v0.0.8 and newer |
 |---|---|
 | Is `VoxShift.exe` digitally signed (Authenticode, SHA-256, timestamped)? | Yes, with a **self-signed** certificate whose key fingerprint is shown in the release notes |
 | Can I check that the file is unmodified and made with the VoxShift release key? | Yes, see below |
@@ -331,13 +331,13 @@ Every release includes `SHA256SUMS.txt`. In PowerShell, in the folder with your 
 version you downloaded):
 
 ```powershell
-Get-FileHash .\VoxShift-v0.0.8-win-x64-portable.exe -Algorithm SHA256
+Get-FileHash .\VoxShift-v0.0.9-win-x64-portable.exe -Algorithm SHA256
 ```
 
 The hash must equal the one listed for that file name in `SHA256SUMS.txt`. To inspect the signature:
 
 ```powershell
-$s = Get-AuthenticodeSignature .\VoxShift-v0.0.8-win-x64-portable.exe
+$s = Get-AuthenticodeSignature .\VoxShift-v0.0.9-win-x64-portable.exe
 $s.Status                          # see the note below
 # key fingerprint: must equal "Signing key SHA-256" in the release notes
 [BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($s.SignerCertificate.GetPublicKey())).Replace('-', '').ToLower()
