@@ -61,7 +61,7 @@ public sealed class ProcessLoopbackCapture : ICaptureSource
                 $"Application audio capture needs Windows 11 or Windows 10 build {MinimumWindowsBuild}+ (this is build {Environment.OSVersion.Version.Build}).");
         }
 
-        var started = new ManualResetEventSlim(false);
+        using var started = new ManualResetEventSlim(false);
         Exception? startError = null;
         _stopEvent.Reset();
         _thread = new Thread(() => CaptureThread(started, e => startError = e))

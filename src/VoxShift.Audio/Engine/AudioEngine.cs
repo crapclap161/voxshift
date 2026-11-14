@@ -193,10 +193,17 @@ public sealed class AudioEngine : IDisposable
     });
 
     public Task<(IReadOnlyList<AudioDeviceInfo> Capture, IReadOnlyList<AudioDeviceInfo> Render)> GetDevicesAsync() =>
-        Invoke(() => (_devices!.GetDevices(DataFlow.Capture), _devices!.GetDevices(DataFlow.Render)));
+        Invoke(() =>
+        {
+            var devices = RequireDevices();
+            return (devices.GetDevices(DataFlow.Capture), devices.GetDevices(DataFlow.Render));
+        });
 
     public Task<IReadOnlyList<AudioApplicationInfo>> GetApplicationsAsync() =>
-        Invoke(() => AudioApplicationEnumerator.Enumerate(_devices!.Enumerator, _log));
+        Invoke(() => AudioApplicationEnumerator.Enumerate(RequireDevices().Enumerator, _log));
+
+    private DeviceService RequireDevices() =>
+        _devices ?? throw new AudioCaptureException("Windows audio is not available (device enumeration could not be initialised).");
 
     /// <summary>Forces an immediate re-check (e.g. user pressed "Retry").</summary>
     public void Retry() => Post(() =>
@@ -209,20 +216,35 @@ public sealed class AudioEngine : IDisposable
 
     private void Post(Action action)
     {
-        if (_disposed) return;
-        try { _queue.Add(action); }
-        catch (InvalidOperationException) { /* shutting down */ }
+        TryPost(action);
+    }
+
+    /// <summary>Queues work for the engine thread. False when the engine is shutting down and the work was dropped.</summary>
+    private bool TryPost(Action action)
+    {
+        if (_disposed) return false;
+        try
+        {
+            _queue.Add(action);
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false; // shutting down (also covers a disposed queue)
+        }
     }
 
     private Task<T> Invoke<T>(Func<T> func)
     {
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Post(() =>
+        bool queued = TryPost(() =>
         {
-            try { tcs.SetResult(func()); }
-            catch (Exception ex) { tcs.SetException(ex); }
+            try { tcs.TrySetResult(func()); }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
-        if (_disposed) tcs.TrySetCanceled();
+
+        // Never leave a caller waiting for an answer that cannot come any more.
+        if (!queued || _disposed) tcs.TrySetCanceled();
         return tcs.Task;
     }
 
@@ -318,11 +340,7 @@ public sealed class AudioEngine : IDisposable
 
     private void EnsureOutput()
     {
-        if (_output is { IsRunning: true })
-        {
-            // Configured device still present? (Removal also stops playback, but be defensive.)
-            return;
-        }
+        if (_output is { IsRunning: true }) return; // a removed device stops playback, which lands in the branch below
 
         if (_output is not null)
         {
@@ -678,7 +696,10 @@ public sealed class AudioEngine : IDisposable
         }
 
         string? defaultId = _devices!.GetDefaultId(DataFlow.Render);
-        if (_monitor is { IsRunning: true } && _monitor.DeviceId == defaultId) return;
+
+        // Keep the running monitor only while it is still on the default device and that device has not become the
+        // VRChat output in the meantime (VRChat would otherwise hear every sound twice).
+        if (_monitor is { IsRunning: true } && _monitor.DeviceId == defaultId && _monitor.DeviceId != _output?.DeviceId) return;
 
         if (_monitor is not null)
         {
